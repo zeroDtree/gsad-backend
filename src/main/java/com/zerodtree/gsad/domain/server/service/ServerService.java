@@ -27,7 +27,7 @@ public class ServerService {
     private final AgentProvisionService agentProvisionService;
 
     @Transactional(readOnly = true)
-    public List<ServerVO> listPublicServers() {
+    public List<ServerVO> listServers() {
         return serverRepository.findAllByOrderByServerIdAsc().stream()
                 .map(server -> ServerMapper.toVo(server, metricsReader.parse(server.getMetricsJson())))
                 .toList();

@@ -42,7 +42,7 @@ public class AgentProvisionService {
     @Transactional(readOnly = true)
     public List<PendingRevokeTask> findPendingRevokes(String serverId) {
         return applicationRepository.findByAuditStatusAndServerIdAndExpireAtBefore(
-                        AuditStatus.ACTIVE, serverId, Instant.now()).stream()
+                AuditStatus.ACTIVE, serverId, Instant.now()).stream()
                 .map(app -> new PendingRevokeTask(app.getId(), app.getSshUsername()))
                 .toList();
     }
