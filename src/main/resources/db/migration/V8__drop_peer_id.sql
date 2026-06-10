@@ -1,0 +1,2 @@
+ALTER TABLE t_server DROP COLUMN IF EXISTS peer_id;
+ALTER TABLE t_application DROP COLUMN IF EXISTS peer_id;

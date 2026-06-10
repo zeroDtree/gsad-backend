@@ -1,0 +1,79 @@
+services:
+  postgres:
+    image: postgres:16
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: gsad
+      POSTGRES_USER: gsad
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gsad"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    command: redis-server --requirepass ${REDIS_PASSWORD}
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  account-provision-mock:
+    build:
+      context: ./dev
+      dockerfile: account-provision-mock/Dockerfile
+    environment:
+      GSAD_API_URL: http://backend:8080
+      AGENT_PSK: ${AGENT_PSK}
+      PROVISION_POLL_INTERVAL: 10
+      MOCK_SERVER_COUNT: 30
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  backend:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      DB_HOST: postgres
+      DB_USER: gsad
+      DB_PASSWORD: ${DB_PASSWORD}
+      REDIS_HOST: redis
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      AGENT_PSK: ${AGENT_PSK}
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8080/v3/api-docs || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  gpu-server-report-mock:
+    profiles: ["gpu-server-report-mock"]
+    build: ./dev/gpu-server-report-mock
+    environment:
+      REPORT_API_URL: http://backend:8080
+      AGENT_PSK: ${AGENT_PSK}
+      AGENT_REPORT_INTERVAL: 30
+      MOCK_SERVER_COUNT: 30
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
