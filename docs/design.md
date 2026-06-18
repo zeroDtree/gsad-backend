@@ -11,7 +11,7 @@ Spring Boot backend for GPU Server Access Dashboard. Public API contract: [front
 | Framework | Spring Boot 4.0.5, Java 21, WAR packaging |
 | Data | Spring Data JPA + PostgreSQL 16 |
 | Cache | Redis (idempotency keys, 24h TTL) |
-| Migrations | Flyway V1–V4 |
+| Migrations | Flyway V1–V2 (prod); + V3–V4 dev seeds |
 | Security | JWT (user APIs) + `X-Agent-PSK` (internal APIs) |
 | Docs | SpringDoc OpenAPI at `/swagger-ui.html` |
 
@@ -28,7 +28,9 @@ src/main/java/com/zerodtree/gsad/
     ├── user/        auth (register, login)
     ├── server/      list servers, internal report/provision
     └── application/ create/list apps, AgentProvisionService, ExpirationScheduler
-src/main/resources/db/migration/   V1–V4
+src/main/resources/db/migration/       V1–V2 schema (all profiles)
+src/main/resources/db/migration-dev/   V3–V4 seeds (dev profile only)
+deploy/                                nginx, certs, backup scripts
 ```
 
 ---
@@ -150,12 +152,29 @@ See [../src/main/resources/application.properties](../src/main/resources/applica
 
 ## Flyway migrations
 
-| Version | Summary |
-|---------|---------|
-| V1 | Initial schema (`t_user`, `t_server`, `t_application`) |
-| V2 | Indexes |
-| V3 | Seed admin user |
-| V4 | Seed `gpu-mock-001..030` |
+| Location | Version | Summary | Profile |
+|----------|---------|---------|---------|
+| `db/migration/` | V1 | Initial schema | all |
+| `db/migration/` | V2 | Indexes | all |
+| `db/migration-dev/` | V3 | Seed admin user | `dev` only |
+| `db/migration-dev/` | V4 | Seed `gpu-mock-001..030` | `dev` only |
+
+`application-dev.properties` adds `classpath:db/migration-dev` to Flyway locations.
+
+---
+
+## Deployment
+
+Docker Compose runs each service in its own container. See [production-deploy.md](production-deploy.md).
+
+| Profile | Services |
+|---------|----------|
+| default + `docker-compose.dev.yml` | postgres, redis, backend (dev), host ports |
+| `mock` | account-provision-mock |
+| `gpu-server-report-mock` | gpu-server-report-mock |
+| `prod` | frontend, nginx (TLS); no DB ports on host |
+
+Prod edge nginx blocks `/api/internal/` on :443; agents call backend :8080 on the private network.
 
 ---
 
@@ -171,8 +190,9 @@ Unit tests cover application service, JWT, exception handler. Integration tests 
 
 ## Production notes
 
-1. Deploy [account-provisioner](../../../account-provisioner/) per GPU host; remove `account-provision-mock`.
-2. Deploy [gpu-server-report](../../../gpu-server-report/) for metrics; dev mock uses compose profile `gpu-server-report-mock`.
-3. Set `t_server.ssh_host` when provisioner omits `serverIp` in complete callback.
+1. Central stack: `docker compose --profile prod up` — see [production-deploy.md](production-deploy.md).
+2. Deploy [account-provisioner](../../../account-provisioner/) per GPU host.
+3. Deploy [gpu-server-report](../../../gpu-server-report/) per GPU host.
+4. Set `t_server.ssh_host` when provisioner omits `serverIp` in complete callback.
 
 Startup flow: [flowchar.md](flowchar.md).

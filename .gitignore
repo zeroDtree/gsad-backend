@@ -34,5 +34,8 @@ build/
 
 ### Local environment secrets ###
 .env
+deploy/certs/*.crt
+deploy/certs/*.key
+backups/
 
 /pkgs/

@@ -126,7 +126,7 @@ flowchart TB
 
     subgraph dataLayer [Data layer]
         D1["HikariCP postgres:5432/gsad"]
-        D2["Flyway V1..V4"]
+        D2["Flyway V1-V2 (+ V3-V4 dev)"]
         D3["Hibernate validate"]
         D4["Redis"]
     end
@@ -167,15 +167,14 @@ flowchart TD
     F2["baseline-on-migrate"]
     F3["V1 init"]
     F4["V2 indexes"]
-    F5["V3 admin seed"]
-    F6["V4 mock servers"]
-    F7["Hibernate validate"]
+    F5["V3-V4 dev seeds if profile dev"]
+    F6["Hibernate validate"]
     OK["Data layer ready"]
 
     F0 --> F1
-    F1 -->|no| F2 --> F3 --> F4 --> F5 --> F6 --> F7 --> OK
+    F1 -->|no| F2 --> F3 --> F4 --> F5 --> F6 --> OK
     F1 -->|behind| F3
-    F1 -->|at V4| F7 --> OK
+    F1 -->|at V2/V4| F6 --> OK
 ```
 
 ---
@@ -186,7 +185,9 @@ flowchart TD
 
 **redis:** Redis 7, `--requirepass`, healthcheck `redis-cli ping`.
 
-**account-provision-mock:** `provision_loop.py` polls `provision/pending`, completes grants/revokes. Contract: [agent-provision.md](agent-provision.md).
+**account-provision-mock** (profile `mock`): `provision_loop.py` polls `provision/pending`.
+
+**frontend + nginx** (profile `prod`): TLS edge; `/api/internal` blocked on :443. See [production-deploy.md](production-deploy.md).
 
 **gpu-server-report-mock** (profile): `report-loop.sh` POSTs to `/api/internal/servers/report` for mock `serverId` values.
 
