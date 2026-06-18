@@ -10,7 +10,6 @@ public final class ServerMapper {
     public static ServerVO toVo(Server server, ServerMetricsReader.MetricsSnapshot metrics) {
         return new ServerVO(
                 server.getServerId(),
-                server.getHostname(),
                 server.getResourceLevel(),
                 server.getStatus().name(),
                 server.getLastReportedAt(),

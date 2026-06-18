@@ -5,7 +5,7 @@ import jakarta.validation.constraints.NotNull;
 
 public record ProvisionCompleteRequest(
         @NotBlank String applicationId,
-        @NotBlank String hostname,
+        @NotBlank String serverId,
         @NotNull Boolean success,
         String serverIp,
         String errorMessage

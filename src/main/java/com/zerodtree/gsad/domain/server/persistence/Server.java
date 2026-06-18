@@ -17,7 +17,6 @@ import lombok.Setter;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 
 @Entity
@@ -30,9 +29,6 @@ public class Server {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
-    @Column(nullable = false, unique = true)
-    private String hostname;
 
     @Column(name = "server_id", nullable = false, unique = true)
     private String serverId;
@@ -49,12 +45,6 @@ public class Server {
 
     @Column(name = "last_reported_at")
     private Instant lastReportedAt;
-
-    @Column(name = "avg_util", precision = 5, scale = 4)
-    private BigDecimal avgUtil;
-
-    @Column(name = "avg_mem_used_mb")
-    private Integer avgMemUsedMb;
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "metrics_json", columnDefinition = "jsonb")

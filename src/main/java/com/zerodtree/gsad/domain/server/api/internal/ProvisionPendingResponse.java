@@ -2,11 +2,7 @@ package com.zerodtree.gsad.domain.server.api.internal;
 
 import java.util.List;
 
-public record ServerReportResponse(
+public record ProvisionPendingResponse(
         List<PendingGrantTask> pendingGrants,
         List<PendingRevokeTask> pendingRevokes
-) {
-    public static ServerReportResponse empty() {
-        return new ServerReportResponse(List.of(), List.of());
-    }
-}
+) {}

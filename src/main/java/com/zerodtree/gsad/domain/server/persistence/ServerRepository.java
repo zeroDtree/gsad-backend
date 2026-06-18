@@ -9,7 +9,5 @@ public interface ServerRepository extends JpaRepository<Server, Long> {
 
     Optional<Server> findByServerId(String serverId);
 
-    Optional<Server> findByHostname(String hostname);
-
     List<Server> findAllByOrderByServerIdAsc();
 }

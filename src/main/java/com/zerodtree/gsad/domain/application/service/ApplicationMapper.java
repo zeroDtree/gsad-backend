@@ -23,7 +23,6 @@ public final class ApplicationMapper {
                 application.getSshUsername(),
                 isCredentialsReady(application) ? application.getInitialPassword() : null,
                 isCredentialsReady(application),
-                Boolean.TRUE.equals(application.getPasswordDelivered()),
                 application.getCreatedAt(),
                 application.getUpdatedAt());
     }

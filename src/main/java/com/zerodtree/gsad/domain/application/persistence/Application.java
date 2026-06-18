@@ -71,9 +71,6 @@ public class Application {
     @Column(name = "ssh_password_plain")
     private String sshPasswordPlain;
 
-    @Column(name = "password_delivered", nullable = false)
-    private Boolean passwordDelivered = false;
-
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 

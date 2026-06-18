@@ -9,6 +9,7 @@ import com.zerodtree.gsad.domain.server.api.internal.PendingGrantTask;
 import com.zerodtree.gsad.domain.server.api.internal.PendingRevokeTask;
 import com.zerodtree.gsad.domain.server.api.internal.ProvisionCompleteRequest;
 import com.zerodtree.gsad.domain.server.api.internal.RevokeCompleteRequest;
+import com.zerodtree.gsad.domain.server.api.internal.ProvisionPendingResponse;
 import com.zerodtree.gsad.domain.server.persistence.Server;
 import com.zerodtree.gsad.domain.server.persistence.ServerRepository;
 import lombok.RequiredArgsConstructor;
@@ -47,11 +48,16 @@ public class AgentProvisionService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
+    public ProvisionPendingResponse findPendingTasks(String serverId) {
+        return new ProvisionPendingResponse(findPendingGrants(serverId), findPendingRevokes(serverId));
+    }
+
     @Transactional
     public void completeProvision(ProvisionCompleteRequest request) {
         Application application = applicationRepository.findById(request.applicationId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "Application not found"));
-        assertServerMatches(request.hostname(), application.getServerId());
+        assertServerMatches(request.serverId(), application.getServerId());
 
         if (!Boolean.TRUE.equals(request.success())) {
             application.setAuditStatus(AuditStatus.FAILED_GRANT);
@@ -79,7 +85,7 @@ public class AgentProvisionService {
     public void completeRevoke(RevokeCompleteRequest request) {
         Application application = applicationRepository.findById(request.applicationId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "Application not found"));
-        assertServerMatches(request.hostname(), application.getServerId());
+        assertServerMatches(request.serverId(), application.getServerId());
 
         if (!Boolean.TRUE.equals(request.success())) {
             application.setAuditStatus(AuditStatus.FAILED_REVOKE);
@@ -106,17 +112,9 @@ public class AgentProvisionService {
                         ErrorCode.INVALID_ARGUMENT, "serverIp required when ssh_host is unset"));
     }
 
-    private static void assertServerMatches(String hostname, String expectedServerId) {
-        String serverId = deriveServerId(hostname);
+    private static void assertServerMatches(String serverId, String expectedServerId) {
         if (!expectedServerId.equals(serverId)) {
-            throw new BusinessException(ErrorCode.INVALID_ARGUMENT, "hostname does not match application server");
+            throw new BusinessException(ErrorCode.INVALID_ARGUMENT, "serverId does not match application server");
         }
-    }
-
-    public static String deriveServerId(String hostname) {
-        if (hostname.endsWith(".internal")) {
-            return hostname.substring(0, hostname.length() - ".internal".length());
-        }
-        return hostname;
     }
 }

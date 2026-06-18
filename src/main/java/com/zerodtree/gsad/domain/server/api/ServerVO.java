@@ -5,7 +5,6 @@ import java.util.List;
 
 public record ServerVO(
         String id,
-        String hostname,
         String resourceLevel,
         String status,
         Instant lastReportedAt,

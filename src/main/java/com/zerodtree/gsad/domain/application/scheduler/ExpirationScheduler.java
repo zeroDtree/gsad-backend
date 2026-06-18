@@ -17,7 +17,7 @@ public class ExpirationScheduler {
     private final ApplicationRepository applicationRepository;
 
     /**
-     * Expired ACTIVE applications are exposed via report pendingRevokes; no outbound revoke.
+     * Expired ACTIVE applications are exposed via provision/pending pendingRevokes; no outbound revoke.
      */
     @Scheduled(fixedRate = 60_000)
     public void logExpiredActiveApplications() {

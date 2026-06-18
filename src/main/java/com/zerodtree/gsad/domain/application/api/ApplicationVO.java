@@ -18,7 +18,6 @@ public record ApplicationVO(
         String sshUsername,
         @JsonInclude(JsonInclude.Include.NON_NULL) String initialPassword,
         boolean credentialsReady,
-        boolean passwordDelivered,
         Instant createdAt,
         Instant updatedAt
 ) {}

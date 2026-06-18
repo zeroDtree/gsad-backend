@@ -22,8 +22,15 @@ public class InternalServerController {
     private final AgentProvisionService agentProvisionService;
 
     @PostMapping("/report")
-    public ApiResponse<ServerReportResponse> report(@Valid @RequestBody ServerReportRequest request) {
-        return ApiResponse.ok(serverService.reportMetrics(request));
+    public ApiResponse<Void> report(@Valid @RequestBody ServerReportRequest request) {
+        serverService.reportMetrics(request);
+        return ApiResponse.ok(null);
+    }
+
+    @PostMapping("/provision/pending")
+    public ApiResponse<ProvisionPendingResponse> provisionPending(
+            @Valid @RequestBody ProvisionPendingRequest request) {
+        return ApiResponse.ok(agentProvisionService.findPendingTasks(request.serverId()));
     }
 
     @PostMapping("/provision/complete")

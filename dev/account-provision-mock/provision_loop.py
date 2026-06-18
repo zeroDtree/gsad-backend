@@ -1,4 +1,4 @@
-"""Dev mock for external account-provision service (agent-provision.md)."""
+"""Dev mock for external account-provision service (docs/agent-provision.md)."""
 
 from __future__ import annotations
 
@@ -20,25 +20,8 @@ def headers() -> dict[str, str]:
     }
 
 
-def hostname_for(index: int) -> str:
-    return f"gpu-mock-{index:03d}.internal"
-
-
-def minimal_report_body(hostname: str) -> dict:
-    return {
-        "hostname": hostname,
-        "resourceLevel": "H100",
-        "summary": {"gpuCount": 1, "avgUtil": 0.1, "avgMemUsedMb": 1024},
-        "gpus": [
-            {
-                "index": 0,
-                "name": "NVIDIA H100",
-                "avgUtil": 0.1,
-                "memUsedMb": 1024,
-                "memTotalMb": 81920,
-            }
-        ],
-    }
+def server_id_for(index: int) -> str:
+    return f"gpu-mock-{index:03d}"
 
 
 def server_ip_for(server_id: str) -> str:
@@ -50,19 +33,19 @@ def server_ip_for(server_id: str) -> str:
     return f"10.0.{(n // 250) + 1}.{((n % 250) + 1)}"
 
 
-def post_report(hostname: str) -> dict | None:
-    url = f"{GSAD_API_URL}/api/internal/servers/report"
-    resp = requests.post(url, json=minimal_report_body(hostname), headers=headers(), timeout=30)
+def post_pending(server_id: str) -> dict | None:
+    url = f"{GSAD_API_URL}/api/internal/servers/provision/pending"
+    resp = requests.post(url, json={"serverId": server_id}, headers=headers(), timeout=30)
     resp.raise_for_status()
     payload = resp.json()
     return payload.get("data")
 
 
-def complete_provision(task: dict, hostname: str) -> None:
+def complete_provision(task: dict, server_id: str) -> None:
     url = f"{GSAD_API_URL}/api/internal/servers/provision/complete"
     body = {
         "applicationId": task["applicationId"],
-        "hostname": hostname,
+        "serverId": server_id,
         "success": True,
         "serverIp": server_ip_for(task["serverId"]),
         "errorMessage": None,
@@ -71,11 +54,11 @@ def complete_provision(task: dict, hostname: str) -> None:
     resp.raise_for_status()
 
 
-def complete_revoke(task: dict, hostname: str) -> None:
+def complete_revoke(task: dict, server_id: str) -> None:
     url = f"{GSAD_API_URL}/api/internal/servers/revoke/complete"
     body = {
         "applicationId": task["applicationId"],
-        "hostname": hostname,
+        "serverId": server_id,
         "success": True,
         "errorMessage": None,
     }
@@ -85,17 +68,17 @@ def complete_revoke(task: dict, hostname: str) -> None:
 
 def poll_once() -> None:
     for i in range(1, MOCK_SERVER_COUNT + 1):
-        hostname = hostname_for(i)
+        server_id = server_id_for(i)
         try:
-            data = post_report(hostname)
+            data = post_pending(server_id)
         except requests.RequestException as exc:
-            print(f"WARN report failed for {hostname}: {exc}", flush=True)
+            print(f"WARN pending poll failed for {server_id}: {exc}", flush=True)
             continue
         if not data:
             continue
         for grant in data.get("pendingGrants") or []:
             try:
-                complete_provision(grant, hostname)
+                complete_provision(grant, server_id)
                 print(
                     f"INFO provision complete app={grant.get('applicationId')} "
                     f"user={grant.get('linuxUsername')}",
@@ -105,7 +88,7 @@ def poll_once() -> None:
                 print(f"ERROR provision complete failed: {exc}", flush=True)
         for revoke in data.get("pendingRevokes") or []:
             try:
-                complete_revoke(revoke, hostname)
+                complete_revoke(revoke, server_id)
                 print(
                     f"INFO revoke complete app={revoke.get('applicationId')} "
                     f"user={revoke.get('linuxUsername')}",

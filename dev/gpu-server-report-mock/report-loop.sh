@@ -7,14 +7,13 @@ AGENT_REPORT_INTERVAL="${AGENT_REPORT_INTERVAL:-${INTERVAL_SEC:-30}}"
 MOCK_SERVER_COUNT="${MOCK_SERVER_COUNT:-30}"
 
 report_server() {
-  local hostname="$1"
-  local server_id="$2"
-  local resource_level="$3"
-  local gpu_count="$4"
-  local avg_util="$5"
-  local avg_mem="$6"
-  local gpu_name="$7"
-  local mem_total_mb="$8"
+  local server_id="$1"
+  local resource_level="$2"
+  local gpu_count="$3"
+  local avg_util="$4"
+  local avg_mem="$5"
+  local gpu_name="$6"
+  local mem_total_mb="$7"
 
   local collected_at gpus_json
   collected_at="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
@@ -24,7 +23,7 @@ report_server() {
     -H "Content-Type: application/json" \
     -H "X-Agent-PSK: ${AGENT_PSK}" \
     -d "{
-      \"hostname\": \"${hostname}\",
+      \"serverId\": \"${server_id}\",
       \"resourceLevel\": \"${resource_level}\",
       \"collectedAt\": \"${collected_at}\",
       \"summary\": {
@@ -34,7 +33,7 @@ report_server() {
       },
       \"gpus\": ${gpus_json}
     }" >/dev/null
-  echo "[gpu-server-report-mock] reported ${server_id} (${hostname})"
+  echo "[gpu-server-report-mock] reported ${server_id}"
 }
 
 build_gpus_json() {
@@ -70,11 +69,10 @@ mock_server_spec() {
 
 report_all_mock_servers() {
   local i spec resource_level gpu_count gpu_name mem_total_mb
-  local server_id hostname avg_util avg_mem
+  local server_id avg_util avg_mem
 
   for i in $(seq 1 "$MOCK_SERVER_COUNT"); do
     server_id="$(printf "gpu-mock-%03d" "$i")"
-    hostname="${server_id}.internal"
 
     IFS='|' read -r resource_level gpu_count gpu_name mem_total_mb <<< "$(mock_server_spec "$i")"
 
@@ -83,7 +81,7 @@ report_all_mock_servers() {
     avg_mem="$(awk -v util="$avg_util" -v total="$mem_total_mb" -v count="$gpu_count" \
       'BEGIN { printf "%d", int(util * total * count / (count > 0 ? count : 1)) }')"
 
-    report_server "$hostname" "$server_id" "$resource_level" "$gpu_count" \
+    report_server "$server_id" "$resource_level" "$gpu_count" \
       "$avg_util" "$avg_mem" "$gpu_name" "$mem_total_mb"
   done
 }

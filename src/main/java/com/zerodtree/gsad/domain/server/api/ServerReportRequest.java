@@ -8,7 +8,7 @@ import java.time.Instant;
 import java.util.List;
 
 public record ServerReportRequest(
-        @NotBlank String hostname,
+        @NotBlank String serverId,
         @NotBlank String resourceLevel,
         Instant collectedAt,
         @NotNull @Valid GpuSummaryBlock summary,
