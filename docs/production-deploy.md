@@ -6,11 +6,19 @@ Deploy the **central** GSAD stack on one host with Docker Compose. GPU agents ru
 
 | Host | Containers |
 |------|------------|
-| Central | postgres, redis, backend, frontend, nginx |
+| Central | postgres, redis, backend, frontend (+ external Traefik) |
 | Each GPU | account-provisioner, gpu-server-report |
 
-Public users hit **nginx :443** → static frontend + `/api/*` (JWT).  
-`/api/internal/*` is **blocked on 443**; GPU agents call `backend:8080` on the internal Docker network or the host private IP.
+Public users hit **Traefik :443** → static frontend + `/api/*` (JWT).  
+`/api/internal/*` is **blocked at Traefik** (403); GPU agents call `backend:8080` on the internal Docker network or the host private IP.
+
+## Prerequisites
+
+- Traefik running on Docker network `${TRAEFIK_NETWORK}` (e.g. `netbird`) with:
+  - `providers.docker.network=${TRAEFIK_NETWORK}`
+  - `certificatesresolvers.letsencrypt` (name must match compose labels)
+  - HTTP → HTTPS redirect on entrypoint `web`
+- DNS A record: `${GSAD_PUBLIC_HOST}` → server public IP (DNS-01 challenge if using Let's Encrypt)
 
 ## 1. Central stack (production)
 
@@ -18,24 +26,23 @@ Public users hit **nginx :443** → static frontend + `/api/*` (JWT).
 cd backend/gsad
 cp .env.example .env
 # Edit .env: strong DB_PASSWORD, REDIS_PASSWORD, JWT_SECRET (>=32), AGENT_PSK (>=16)
-# Set SPRING_PROFILES_ACTIVE=prod
+# Set SPRING_PROFILES_ACTIVE=prod, GSAD_PUBLIC_HOST, TRAEFIK_NETWORK
 
 proxy_on   # if your network needs a local HTTP proxy
 # Docker Desktop: Settings → Proxies (image pulls during `docker build` use the daemon, not only the shell)
 
-./deploy/certs/generate-dev-certs.sh   # or install real tls.crt / tls.key in deploy/certs/
-
-docker compose --profile prod up -d --build
+docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile prod up -d --build
 ```
 
 Verify:
 
 ```bash
-curl -k https://localhost/healthz
-curl -k https://localhost/api/internal/servers/report -X POST   # expect 403 from nginx
+curl -sf "https://${GSAD_PUBLIC_HOST}/"
+curl -sf -o /dev/null -w "%{http_code}\n" -X POST \
+  "https://${GSAD_PUBLIC_HOST}/api/internal/servers/report"   # expect 403
 ```
 
-Backend health (from host with docker network access):
+Backend health (internal):
 
 ```bash
 docker compose exec backend curl -sf http://localhost:8080/actuator/health
@@ -72,7 +79,7 @@ Example environment:
 
 | Variable | Value |
 |----------|-------|
-| `GSAD_API_URL` | `http://<central-private-ip>:8080` (direct to backend, not public nginx) |
+| `GSAD_API_URL` | `http://<central-private-ip>:8080` (direct to backend, not public Traefik) |
 | `AGENT_PSK` | Same as central `.env` |
 | `SERVER_ID` | Stable id matching `t_server.server_id` / applications |
 
@@ -92,17 +99,31 @@ Requires `SPRING_PROFILES_ACTIVE=dev` (default) for Flyway dev seeds (admin + 30
 | Task | Command |
 |------|---------|
 | Logs | `docker compose logs -f backend` |
-| Health | `GET /actuator/health` (backend), `GET /healthz` (nginx) |
+| Health | `GET /actuator/health` (backend, internal) |
 | DB backup | `./deploy/scripts/backup-postgres.sh` |
 | Restore volume | `docker compose down -v` (destructive) |
 
-Schedule backups with cron, e.g. daily `0 3 * * * /path/to/deploy/scripts/backup-postgres.sh`.
+### Database backup
 
-## 6. Security checklist
+`./deploy/scripts/backup-postgres.sh` dumps PostgreSQL via `pg_dump`, gzip-compresses, verifies integrity (`gzip -t`), then prunes:
 
-- [ ] `SPRING_PROFILES_ACTIVE=prod`
-- [ ] Strong `JWT_SECRET` and `AGENT_PSK` (not example values)
-- [ ] Postgres / Redis / backend **not** published on host ports (prod compose default)
-- [ ] TLS certificates in `deploy/certs/`
-- [ ] Firewall: only 443 public; GPU subnet → backend 8080 for agents
-- [ ] Remove `account-provision-mock` profile in production
+- Files older than **30 days** (`RETENTION_DAYS`)
+- Oldest files first while directory total exceeds **500MB** (`MAX_TOTAL_MB`)
+
+If a single backup exceeds `MAX_TOTAL_MB`, the script fails without removing existing history.
+
+Optional environment variables:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `BACKUP_DIR` | `./backups` | Output directory |
+| `RETENTION_DAYS` | `30` | Max age of retained backups |
+| `MAX_TOTAL_MB` | `500` | Max combined size of all retained backups |
+
+Schedule with cron (log stdout/stderr):
+
+```bash
+0 3 * * * /path/to/backend/gsad/deploy/scripts/backup-postgres.sh >> /var/log/gsad-backup.log 2>&1
+```
+
+Back up `.env` secrets separately (not included in DB dumps).

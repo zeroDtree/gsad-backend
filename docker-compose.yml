@@ -57,30 +57,9 @@ services:
     build:
       context: ../../frontend
       dockerfile: Dockerfile
-    networks:
-      - internal
-
-  nginx:
-    profiles: ["prod"]
-    image: nginx:1.27-alpine
-    ports:
-      - "443:443"
-      - "80:80"
-    volumes:
-      - ./deploy/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./deploy/certs:/etc/nginx/certs:ro
     depends_on:
       backend:
         condition: service_healthy
-      frontend:
-        condition: service_started
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8088/healthz || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - internal
 
   account-provision-mock:
     profiles: ["mock"]
@@ -99,7 +78,7 @@ services:
       - internal
 
   gpu-server-report-mock:
-    profiles: ["gpu-server-report-mock"]
+    profiles: ["mock"]
     build: ./dev/gpu-server-report-mock
     environment:
       REPORT_API_URL: http://backend:8080

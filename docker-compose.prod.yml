@@ -1,0 +1,41 @@
+# Production overrides: Traefik routing on an external Docker network (TLS at the edge).
+services:
+  backend:
+    networks:
+      - internal
+      - traefik
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=${TRAEFIK_NETWORK}
+      - traefik.http.middlewares.gsad-forbidden.directresponse.statuscode=403
+      - traefik.http.routers.gsad-block.rule=Host(`${GSAD_PUBLIC_HOST}`) && PathPrefix(`/api/internal`)
+      - traefik.http.routers.gsad-block.entrypoints=websecure
+      - traefik.http.routers.gsad-block.tls=true
+      - traefik.http.routers.gsad-block.tls.certresolver=letsencrypt
+      - traefik.http.routers.gsad-block.priority=100
+      - traefik.http.routers.gsad-block.middlewares=gsad-forbidden
+      - traefik.http.routers.gsad-block.service=gsad-api
+      - traefik.http.routers.gsad-api.rule=Host(`${GSAD_PUBLIC_HOST}`) && PathPrefix(`/api`)
+      - traefik.http.routers.gsad-api.entrypoints=websecure
+      - traefik.http.routers.gsad-api.tls=true
+      - traefik.http.routers.gsad-api.tls.certresolver=letsencrypt
+      - traefik.http.routers.gsad-api.priority=10
+      - traefik.http.services.gsad-api.loadbalancer.server.port=8080
+
+  frontend:
+    networks:
+      - traefik
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=${TRAEFIK_NETWORK}
+      - traefik.http.routers.gsad-ui.rule=Host(`${GSAD_PUBLIC_HOST}`)
+      - traefik.http.routers.gsad-ui.entrypoints=websecure
+      - traefik.http.routers.gsad-ui.tls=true
+      - traefik.http.routers.gsad-ui.tls.certresolver=letsencrypt
+      - traefik.http.routers.gsad-ui.priority=1
+      - traefik.http.services.gsad-ui.loadbalancer.server.port=80
+
+networks:
+  traefik:
+    external: true
+    name: ${TRAEFIK_NETWORK}

@@ -30,7 +30,7 @@ src/main/java/com/zerodtree/gsad/
     └── application/ create/list apps, AgentProvisionService, ExpirationScheduler
 src/main/resources/db/migration/       V1–V2 schema (all profiles)
 src/main/resources/db/migration-dev/   V3–V4 seeds (dev profile only)
-deploy/                                nginx, certs, backup scripts
+deploy/                                backup scripts (Traefik handles TLS at the edge)
 ```
 
 ---
@@ -170,11 +170,10 @@ Docker Compose runs each service in its own container. See [production-deploy.md
 | Profile | Services |
 |---------|----------|
 | default + `docker-compose.dev.yml` | postgres, redis, backend (dev), host ports |
-| `mock` | account-provision-mock |
-| `gpu-server-report-mock` | gpu-server-report-mock |
-| `prod` | frontend, nginx (TLS); no DB ports on host |
+| `mock` | account-provision-mock, gpu-server-report-mock |
+| `prod` | frontend + Traefik labels (`docker-compose.prod.yml`); no DB ports on host |
 
-Prod edge nginx blocks `/api/internal/` on :443; agents call backend :8080 on the private network.
+Prod Traefik blocks `/api/internal/` on :443; agents call backend :8080 on the private network.
 
 ---
 
