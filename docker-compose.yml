@@ -52,15 +52,6 @@ services:
     networks:
       - internal
 
-  frontend:
-    profiles: ["prod"]
-    build:
-      context: ../../frontend
-      dockerfile: Dockerfile
-    depends_on:
-      backend:
-        condition: service_healthy
-
   account-provision-mock:
     profiles: ["mock"]
     build:

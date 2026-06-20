@@ -1,4 +1,4 @@
-"""Dev mock for external account-provision service (docs/agent-provision.md)."""
+"""Dev mock for external account-provision service (see README.md)."""
 
 from __future__ import annotations
 
