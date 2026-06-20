@@ -13,9 +13,10 @@ Spring Boot 4 / Java 21 · PostgreSQL 16 · Redis (idempotency) · Flyway · JWT
 | POST | `/api/auth/register`, `/api/auth/login` | none |
 | GET | `/api/servers` | JWT |
 | POST | `/api/applications` | JWT (+ optional `Idempotency-Key`) |
+| DELETE | `/api/applications/{id}` | JWT — cancel (`APPROVED`) or revoke access (`ACTIVE`) |
 | GET | `/api/applications/mine` | JWT |
 
-Create body: `serverId`, `purpose`, `requestedDays`, `requestedStartAt`, optional `sshPassword`.
+Create body: `serverId`, optional `sshPassword`.
 
 ## Internal API (`X-Agent-PSK`)
 
@@ -30,14 +31,14 @@ Agents pull tasks; gsad does not call agents outbound.
 
 **Credentials:** gsad owns `linuxUsername` + `password` at create; provisioner sends `serverIp` on grant complete only.
 
-**Status:** `APPROVED` → grant → `ACTIVE` → revoke → `EXPIRED` (failures → `FAILED_GRANT` / `FAILED_REVOKE`).
+**Status:** `APPROVED` → grant → `ACTIVE` → user revoke → `REVOKING` → agent revoke → `REVOKED`. User cancel before grant → `CANCELLED`. Failures → `FAILED_GRANT` / `FAILED_REVOKE`.
 
 Agent env `AGENT_SERVER_ID` must match `t_server.server_id`.
 
 ## Schema (key tables)
 
 - **`t_server`** — `server_id`, `ssh_host`, `resource_level`, `status`, `metrics_json`, `last_reported_at`
-- **`t_application`** — `server_id`, `audit_status`, `server_ip`, `ssh_username`, credentials, `expire_at`
+- **`t_application`** — `server_id`, `audit_status`, `server_ip`, `ssh_username`, credentials
 
 ## Config
 
@@ -52,7 +53,7 @@ Agent env `AGENT_SERVER_ID` must match `t_server.server_id`.
 
 | Location | Profile | Content |
 |----------|---------|---------|
-| `db/migration/` V1–V2 | all | Schema |
+| `db/migration/` V1–V2 | all | Schema (manual revoke model in V1) |
 | `db/migration-dev/` V3–V4 | dev | Admin user + `gpu-mock-001..030` |
 
 ## Dev / prod

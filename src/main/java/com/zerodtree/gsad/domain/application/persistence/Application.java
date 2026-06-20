@@ -37,18 +37,6 @@ public class Application {
     @Column(name = "resource_level", nullable = false)
     private String resourceLevel;
 
-    @Column(nullable = false, length = 500)
-    private String purpose;
-
-    @Column(name = "requested_days", nullable = false)
-    private Integer requestedDays;
-
-    @Column(name = "requested_start_at", nullable = false)
-    private Instant requestedStartAt;
-
-    @Column(name = "expire_at")
-    private Instant expireAt;
-
     @Enumerated(EnumType.STRING)
     @Column(name = "audit_status", nullable = false)
     private AuditStatus auditStatus = AuditStatus.APPROVED;

@@ -58,10 +58,6 @@ public class ApplicationService {
         application.setUserEmail(user.getEmail());
         application.setServerId(server.getServerId());
         application.setResourceLevel(server.getResourceLevel());
-        application.setPurpose(request.purpose());
-        application.setRequestedDays(request.requestedDays());
-        application.setRequestedStartAt(request.requestedStartAt());
-        application.setExpireAt(request.requestedStartAt().plusSeconds(request.requestedDays() * 86400L));
         application.setAuditStatus(AuditStatus.APPROVED);
         application.setSshUsername(linuxUsernameResolver.resolveFromEmail(user.getEmail()));
         application.setSshPasswordPlain(applicationPasswordGenerator.resolvePassword(request.sshPassword()));
@@ -77,6 +73,36 @@ public class ApplicationService {
                     IDEMPOTENCY_TTL);
         }
 
+        return ApplicationMapper.toVo(application);
+    }
+
+    @Transactional
+    public ApplicationVO revoke(Long userId, String applicationId) {
+        Application application = applicationRepository.findByIdAndUserId(applicationId, userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "Application not found"));
+
+        AuditStatus status = application.getAuditStatus();
+        switch (status) {
+            case APPROVED -> {
+                application.setAuditStatus(AuditStatus.CANCELLED);
+                application.setComment(null);
+                application.setSshPasswordPlain(null);
+            }
+            case ACTIVE, FAILED_REVOKE -> {
+                application.setAuditStatus(AuditStatus.REVOKING);
+                application.setComment(null);
+                application.setInitialPassword(null);
+                application.setSshPasswordPlain(null);
+            }
+            case REVOKING -> {
+                return ApplicationMapper.toVo(application);
+            }
+            case REVOKED, CANCELLED, FAILED_GRANT ->
+                    throw new BusinessException(ErrorCode.STATE_CONFLICT, "Application cannot be revoked");
+            default -> throw new BusinessException(ErrorCode.STATE_CONFLICT, "Application cannot be revoked");
+        }
+
+        applicationRepository.save(application);
         return ApplicationMapper.toVo(application);
     }
 

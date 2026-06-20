@@ -5,7 +5,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -18,10 +17,7 @@ public interface ApplicationRepository extends JpaRepository<Application, String
     Page<Application> findByUserIdAndAuditStatusOrderByUpdatedAtDesc(
             Long userId, AuditStatus auditStatus, Pageable pageable);
 
-    List<Application> findByAuditStatusAndExpireAtBefore(AuditStatus auditStatus, Instant expireAt);
-
     List<Application> findByAuditStatusAndServerId(AuditStatus auditStatus, String serverId);
 
-    List<Application> findByAuditStatusAndServerIdAndExpireAtBefore(
-            AuditStatus auditStatus, String serverId, Instant expireAt);
+    Optional<Application> findByIdAndUserId(String id, Long userId);
 }

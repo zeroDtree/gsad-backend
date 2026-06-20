@@ -17,7 +17,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
-import java.time.Instant;
 import java.util.List;
 
 @Service
@@ -42,8 +41,7 @@ public class AgentProvisionService {
 
     @Transactional(readOnly = true)
     public List<PendingRevokeTask> findPendingRevokes(String serverId) {
-        return applicationRepository.findByAuditStatusAndServerIdAndExpireAtBefore(
-                AuditStatus.ACTIVE, serverId, Instant.now()).stream()
+        return applicationRepository.findByAuditStatusAndServerId(AuditStatus.REVOKING, serverId).stream()
                 .map(app -> new PendingRevokeTask(app.getId(), app.getSshUsername()))
                 .toList();
     }
@@ -96,7 +94,8 @@ public class AgentProvisionService {
             return;
         }
 
-        application.setAuditStatus(AuditStatus.EXPIRED);
+        application.setInitialPassword(null);
+        application.setAuditStatus(AuditStatus.REVOKED);
         application.setComment(null);
         applicationRepository.save(application);
     }
