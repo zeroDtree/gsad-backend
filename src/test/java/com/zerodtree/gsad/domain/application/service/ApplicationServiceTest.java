@@ -61,6 +61,7 @@ class ApplicationServiceTest {
         User user = new User();
         user.setId(1L);
         user.setEmail("dev@example.com");
+        user.setLinuxUsername("dev");
 
         Server server = new Server();
         server.setServerId("gpu-001");
@@ -68,7 +69,7 @@ class ApplicationServiceTest {
 
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
         when(serverService.requireByServerId("gpu-001")).thenReturn(server);
-        when(linuxUsernameResolver.resolveFromEmail("dev@example.com")).thenReturn("dev");
+        when(linuxUsernameResolver.resolve(user)).thenReturn("dev");
         when(applicationPasswordGenerator.resolvePassword(null)).thenReturn("generated-pass");
         when(applicationRepository.save(any(Application.class))).thenAnswer(invocation -> invocation.getArgument(0));
 

@@ -16,3 +16,9 @@ CREATE INDEX IF NOT EXISTS idx_application_updated_at
 
 CREATE INDEX IF NOT EXISTS idx_application_server_id
     ON t_application (server_id);
+
+CREATE INDEX IF NOT EXISTS idx_user_status
+    ON t_user (status);
+
+CREATE INDEX IF NOT EXISTS idx_user_cohort
+    ON t_user (cohort);

@@ -3,12 +3,19 @@
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS t_user (
-    id           BIGSERIAL       PRIMARY KEY,
-    email        VARCHAR(255)    NOT NULL UNIQUE,
-    password     VARCHAR(255)    NOT NULL,
-    roles        VARCHAR(255)    NOT NULL DEFAULT '',
-    created_at   TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
-    updated_at   TIMESTAMPTZ     NOT NULL DEFAULT NOW()
+    id               BIGSERIAL       PRIMARY KEY,
+    email            VARCHAR(255)    NOT NULL UNIQUE,
+    password         VARCHAR(255)    NOT NULL,
+    roles            VARCHAR(255)    NOT NULL DEFAULT '',
+    linux_username   VARCHAR(32)     NOT NULL UNIQUE,
+    status           VARCHAR(16)     NOT NULL DEFAULT 'ACTIVE',
+    cohort           VARCHAR(16),
+    display_name     VARCHAR(64),
+    student_id       VARCHAR(32)     UNIQUE,
+    notes            TEXT,
+    label            VARCHAR(64),
+    created_at       TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
+    updated_at       TIMESTAMPTZ     NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS t_server (

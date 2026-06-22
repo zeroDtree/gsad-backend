@@ -59,7 +59,7 @@ public class ApplicationService {
         application.setServerId(server.getServerId());
         application.setResourceLevel(server.getResourceLevel());
         application.setAuditStatus(AuditStatus.APPROVED);
-        application.setSshUsername(linuxUsernameResolver.resolveFromEmail(user.getEmail()));
+        application.setSshUsername(linuxUsernameResolver.resolve(user));
         application.setSshPasswordPlain(applicationPasswordGenerator.resolvePassword(request.sshPassword()));
         if (StringUtils.hasText(idempotencyKey)) {
             application.setIdempotencyKey(idempotencyKey);

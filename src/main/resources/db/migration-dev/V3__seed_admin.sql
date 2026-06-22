@@ -3,8 +3,11 @@
 -- Password: Admin@123456  (BCrypt hash below)
 -- ============================================================
 
-INSERT INTO t_user (email, password, roles)
+INSERT INTO t_user (email, password, roles, linux_username, status, display_name)
 VALUES ('admin@gsad.local',
-        '$2a$10$7EqJtq98hPqEX7fNZaFWoOa/xP3QWF1LcuHEMl8fqFT4oR.yJJW5O',
-        'admin')
+        '$2a$10$6WjNp1CrhQzl.YB.d.7PIeU9OypzxV8rNJ59KtztNM.WzxUX5hbB2',
+        'admin',
+        'admin',
+        'ACTIVE',
+        'Admin')
 ON CONFLICT (email) DO NOTHING;
