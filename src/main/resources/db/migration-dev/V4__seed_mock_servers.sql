@@ -1,4 +1,4 @@
--- Seed gpu-mock-001 .. gpu-mock-030 for dev/demo.
+-- Seed gpu-mock-001 .. gpu-mock-100 for dev/demo.
 INSERT INTO t_server (
     server_id, ssh_host, resource_level, status,
     last_reported_at, metrics_json
@@ -28,7 +28,7 @@ SELECT
             'memTotalMb', (ARRAY[81920, 81920, 49152, 24576, 16384])[1 + ((i - 1) % 5)]
         ))
     )
-FROM generate_series(1, 30) AS i
+FROM generate_series(1, 100) AS i
 WHERE NOT EXISTS (
     SELECT 1 FROM t_server WHERE server_id = format('gpu-mock-%s', lpad(i::text, 3, '0'))
 );

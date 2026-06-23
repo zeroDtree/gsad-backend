@@ -10,6 +10,6 @@ COPY account-provision-mock/provision_loop.py .
 ENV GSAD_API_URL=http://backend:8080
 ENV AGENT_PSK=change-me-in-production
 ENV PROVISION_POLL_INTERVAL=10
-ENV MOCK_SERVER_COUNT=30
+ENV MOCK_SERVER_COUNT=100
 
 CMD ["python", "provision_loop.py"]

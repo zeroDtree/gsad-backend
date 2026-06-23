@@ -10,7 +10,7 @@ import requests
 GSAD_API_URL = os.environ.get("GSAD_API_URL", "http://backend:8080").rstrip("/")
 AGENT_PSK = os.environ.get("AGENT_PSK", "change-me-in-production")
 POLL_INTERVAL = max(5, int(os.environ.get("PROVISION_POLL_INTERVAL", "10")))
-MOCK_SERVER_COUNT = max(1, int(os.environ.get("MOCK_SERVER_COUNT", "30")))
+MOCK_SERVER_COUNT = max(1, int(os.environ.get("MOCK_SERVER_COUNT", "100")))
 
 
 def headers() -> dict[str, str]:

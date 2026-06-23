@@ -4,7 +4,7 @@ set -euo pipefail
 REPORT_API_URL="${REPORT_API_URL:-${GSAD_URL:-http://backend:8080}}"
 AGENT_PSK="${AGENT_PSK:-change-me-in-production}"
 AGENT_REPORT_INTERVAL="${AGENT_REPORT_INTERVAL:-${INTERVAL_SEC:-30}}"
-MOCK_SERVER_COUNT="${MOCK_SERVER_COUNT:-30}"
+MOCK_SERVER_COUNT="${MOCK_SERVER_COUNT:-100}"
 
 report_server() {
   local server_id="$1"
