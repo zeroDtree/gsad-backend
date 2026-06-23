@@ -18,6 +18,18 @@ Spring Boot 4 / Java 21 · PostgreSQL 16 · Redis (idempotency) · Flyway · JWT
 
 Create body: `serverId`, optional `sshPassword`.
 
+## Admin API
+
+| Method | Path | Auth |
+|--------|------|------|
+| GET | `/api/admin/users` | JWT (admin) |
+| PATCH | `/api/admin/users/{id}` | JWT (admin) |
+| DELETE | `/api/admin/users/{id}` | JWT (admin); query `revokeSsh` |
+| POST | `/api/admin/users/bulk-disable` | JWT (admin) |
+| POST | `/api/admin/users/bulk-enable` | JWT (admin) |
+| POST | `/api/admin/users/bulk-delete` | JWT (admin) |
+| POST | `/api/admin/users/import` | JWT (admin); multipart CSV |
+
 ## Internal API (`X-Agent-PSK`)
 
 Agents pull tasks; gsad does not call agents outbound.
@@ -54,7 +66,7 @@ Agent env `AGENT_SERVER_ID` must match `t_server.server_id`.
 | Location | Profile | Content |
 |----------|---------|---------|
 | `db/migration/` V1–V2 | all | Schema (manual revoke model in V1) |
-| `db/migration-dev/` V3–V4 | dev | Admin user + `gpu-mock-001..030` |
+| `db/migration-dev/` V3–V4 | dev | Admin user + `gpu-mock-001..100` |
 
 ## Dev / prod
 
