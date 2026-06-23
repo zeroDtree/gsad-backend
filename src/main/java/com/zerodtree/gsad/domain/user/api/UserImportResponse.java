@@ -5,6 +5,5 @@ import java.util.List;
 public record UserImportResponse(
         int created,
         int skipped,
-        List<UserImportError> errors,
-        List<UserImportPassword> passwords
+        List<UserImportError> errors
 ) {}

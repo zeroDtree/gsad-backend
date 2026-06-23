@@ -7,5 +7,6 @@ public record BulkDeleteUsersRequest(
         Boolean selectAll,
         String cohort,
         String status,
-        boolean revokeSsh
+        boolean revokeSsh,
+        String role
 ) {}

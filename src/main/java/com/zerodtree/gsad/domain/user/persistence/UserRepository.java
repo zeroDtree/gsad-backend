@@ -23,10 +23,15 @@ public interface UserRepository extends JpaRepository<User, Long> {
             SELECT u FROM User u
             WHERE (:status IS NULL OR u.status = :status)
               AND (:cohort IS NULL OR :cohort = '' OR u.cohort = :cohort)
+              AND (:roleFilter IS NULL OR :roleFilter = 'all'
+                   OR (:roleFilter = 'admin' AND CONCAT(',', u.roles, ',') LIKE '%,admin,%')
+                   OR (:roleFilter = 'user' AND (u.roles IS NULL OR u.roles = ''
+                        OR CONCAT(',', u.roles, ',') NOT LIKE '%,admin,%')))
             ORDER BY u.updatedAt DESC
             """)
     Page<User> findFiltered(
             @Param("status") UserStatus status,
             @Param("cohort") String cohort,
+            @Param("roleFilter") String roleFilter,
             Pageable pageable);
 }

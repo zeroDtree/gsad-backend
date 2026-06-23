@@ -47,13 +47,19 @@ public class UserController {
             @Valid @RequestBody LoginRequest body) {
         String clientIp = LoginRateLimitService.resolveClientIp(request);
         loginRateLimitService.assertAllowed(clientIp, body.email());
-        loginRateLimitService.recordAttempt(clientIp, body.email());
 
-        var result = userService.login(body);
-        boolean secure = activeProfile.contains("prod");
-        return ResponseEntity.ok()
-                .header(HttpHeaders.SET_COOKIE, authCookieSupport.createTokenCookie(result.token(), secure).toString())
-                .body(ApiResponse.ok(new SessionResponse(result.email(), result.roles())));
+        try {
+            var result = userService.login(body);
+            boolean secure = activeProfile.contains("prod");
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.SET_COOKIE, authCookieSupport.createTokenCookie(result.token(), secure).toString())
+                    .body(ApiResponse.ok(new SessionResponse(result.email(), result.roles())));
+        } catch (BusinessException ex) {
+            if (ex.getErrorCode() == ErrorCode.UNAUTHORIZED) {
+                loginRateLimitService.recordAttempt(clientIp, body.email());
+            }
+            throw ex;
+        }
     }
 
     @GetMapping("/me")

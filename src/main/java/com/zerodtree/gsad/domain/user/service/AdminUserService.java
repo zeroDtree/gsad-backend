@@ -31,7 +31,6 @@ import org.springframework.util.StringUtils;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Objects;
 import java.util.Set;
 
 @Service
@@ -48,15 +47,16 @@ public class AdminUserService {
     private final ApplicationService applicationService;
 
     @Transactional(readOnly = true)
-    public PageResult<AdminUserVO> list(String cohort, String status, int page, int pageSize) {
+    public PageResult<AdminUserVO> list(String cohort, String status, String role, int page, int pageSize) {
         int safePage = Math.max(page, 1);
         int safeSize = Math.min(Math.max(pageSize, 1), 100);
         Pageable pageable = PageRequest.of(safePage - 1, safeSize);
 
         UserStatus userStatus = parseStatusFilter(status);
         String cohortFilter = StringUtils.hasText(cohort) ? cohort.trim() : null;
+        String roleFilter = parseRoleFilter(role);
 
-        Page<User> resultPage = userRepository.findFiltered(userStatus, cohortFilter, pageable);
+        Page<User> resultPage = userRepository.findFiltered(userStatus, cohortFilter, roleFilter, pageable);
         List<AdminUserVO> items = resultPage.getContent().stream()
                 .map(this::toVo)
                 .toList();
@@ -80,6 +80,9 @@ public class AdminUserService {
             user.setLabel(blankToNull(request.label()));
         }
         if (request.status() != null) {
+            if (request.status() == UserStatus.INACTIVE) {
+                assertAdminMutable(user);
+            }
             user.setStatus(request.status());
         }
         userRepository.save(user);
@@ -88,12 +91,8 @@ public class AdminUserService {
 
     @Transactional
     public DeleteAdminUserResponse delete(Long adminUserId, Long targetUserId, boolean revokeSsh) {
-        if (Objects.equals(adminUserId, targetUserId)) {
-            throw new BusinessException(ErrorCode.FORBIDDEN, "Cannot delete your own account");
-        }
-
         User target = requireUser(targetUserId);
-        assertNotLastAdmin(target);
+        assertAdminMutable(target);
 
         if (revokeSsh) {
             applicationService.revokeAllForUser(targetUserId);
@@ -160,8 +159,8 @@ public class AdminUserService {
 
     @Transactional
     public BulkDeleteUsersResponse bulkDelete(Long adminUserId, BulkDeleteUsersRequest request) {
-        List<User> targets = resolveTargetUsers(
-                new BulkUserActionRequest(request.ids(), request.selectAll(), request.cohort(), request.status()));
+        List<User> targets = resolveTargetUsers(new BulkUserActionRequest(
+                request.ids(), request.selectAll(), request.cohort(), request.status(), request.role()));
         int deleted = 0;
         int pending = 0;
         int skipped = 0;
@@ -176,12 +175,7 @@ public class AdminUserService {
                     pending++;
                 }
             } catch (BusinessException ex) {
-                if (ex.getErrorCode() == ErrorCode.FORBIDDEN
-                        && Objects.equals(adminUserId, user.getId())) {
-                    skipped++;
-                } else {
-                    errors.add(toBulkError(user, ex.getMessage()));
-                }
+                errors.add(toBulkError(user, ex.getMessage()));
             }
         }
 
@@ -195,9 +189,11 @@ public class AdminUserService {
         if (selectAll) {
             UserStatus userStatus = parseStatusFilter(request.status());
             String cohortFilter = StringUtils.hasText(request.cohort()) ? request.cohort().trim() : null;
+            String roleFilter = parseRoleFilter(request.role());
             targets = userRepository.findFiltered(
                             userStatus,
                             cohortFilter,
+                            roleFilter,
                             PageRequest.of(0, BULK_MAX_SIZE + 1, Sort.by(Sort.Direction.DESC, "updatedAt")))
                     .getContent();
         } else {
@@ -231,13 +227,9 @@ public class AdminUserService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "User not found"));
     }
 
-    private void assertNotLastAdmin(User target) {
-        if (!isAdmin(target)) {
-            return;
-        }
-        long adminCount = userRepository.findAll().stream().filter(this::isAdmin).count();
-        if (adminCount <= 1) {
-            throw new BusinessException(ErrorCode.FORBIDDEN, "Cannot delete the last admin");
+    private void assertAdminMutable(User user) {
+        if (isAdmin(user)) {
+            throw new BusinessException(ErrorCode.FORBIDDEN, "Admin account cannot be modified this way");
         }
     }
 
@@ -254,6 +246,7 @@ public class AdminUserService {
                 user.getEmail(),
                 user.getLinuxUsername(),
                 user.getStatus().name(),
+                AuthorityUtils.parseRoles(user.getRoles()),
                 user.getCohort(),
                 user.getDisplayName(),
                 user.getStudentId(),
@@ -273,6 +266,17 @@ public class AdminUserService {
         } catch (IllegalArgumentException ex) {
             throw new BusinessException(ErrorCode.INVALID_ARGUMENT, "Invalid status filter: " + status);
         }
+    }
+
+    private static String parseRoleFilter(String role) {
+        if (!StringUtils.hasText(role) || "all".equalsIgnoreCase(role)) {
+            return null;
+        }
+        String normalized = role.trim().toLowerCase();
+        if ("admin".equals(normalized) || "user".equals(normalized)) {
+            return normalized;
+        }
+        throw new BusinessException(ErrorCode.INVALID_ARGUMENT, "Invalid role filter: " + role);
     }
 
     private static String blankToNull(String value) {

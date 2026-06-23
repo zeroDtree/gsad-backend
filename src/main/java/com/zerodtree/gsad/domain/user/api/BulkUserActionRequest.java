@@ -6,5 +6,6 @@ public record BulkUserActionRequest(
         List<Long> ids,
         Boolean selectAll,
         String cohort,
-        String status
+        String status,
+        String role
 ) {}

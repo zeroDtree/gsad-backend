@@ -40,9 +40,10 @@ public class AdminUserController {
     public ApiResponse<PageResult<AdminUserVO>> listUsers(
             @RequestParam(required = false) String cohort,
             @RequestParam(required = false) String status,
+            @RequestParam(required = false) String role,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(name = "page_size", defaultValue = "20") int pageSize) {
-        return ApiResponse.ok(adminUserService.list(cohort, status, page, pageSize));
+        return ApiResponse.ok(adminUserService.list(cohort, status, role, page, pageSize));
     }
 
     @PatchMapping("/{id}")

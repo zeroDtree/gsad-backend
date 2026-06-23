@@ -2,10 +2,8 @@ package com.zerodtree.gsad.domain.user.service;
 
 import com.zerodtree.gsad.common.BusinessException;
 import com.zerodtree.gsad.common.ErrorCode;
-import com.zerodtree.gsad.domain.application.service.ApplicationPasswordGenerator;
 import com.zerodtree.gsad.domain.application.service.LinuxUsernameResolver;
 import com.zerodtree.gsad.domain.user.api.UserImportError;
-import com.zerodtree.gsad.domain.user.api.UserImportPassword;
 import com.zerodtree.gsad.domain.user.api.UserImportResponse;
 import com.zerodtree.gsad.domain.user.model.UserStatus;
 import com.zerodtree.gsad.domain.user.persistence.User;
@@ -32,12 +30,13 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class UserImportService {
 
-    private static final List<String> REQUIRED_HEADERS = List.of("email", "linux_username");
+    private static final int MIN_PASSWORD_LENGTH = 8;
+    private static final List<String> REQUIRED_HEADERS =
+            List.of("email", "linux_username", "initial_password");
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final LinuxUsernameResolver linuxUsernameResolver;
-    private final ApplicationPasswordGenerator applicationPasswordGenerator;
 
     @Transactional
     public UserImportResponse importCsv(MultipartFile file) {
@@ -46,7 +45,6 @@ public class UserImportService {
         }
 
         List<UserImportError> errors = new ArrayList<>();
-        List<UserImportPassword> passwords = new ArrayList<>();
         int created = 0;
         int skipped = 0;
 
@@ -101,13 +99,10 @@ public class UserImportService {
                     continue;
                 }
 
-                String plainPassword = applicationPasswordGenerator.resolvePassword(row.initialPassword());
-                boolean generatedPassword = !StringUtils.hasText(row.initialPassword());
-
                 User user = new User();
                 user.setEmail(row.email());
                 user.setLinuxUsername(row.linuxUsername());
-                user.setPassword(passwordEncoder.encode(plainPassword));
+                user.setPassword(passwordEncoder.encode(row.initialPassword()));
                 user.setStatus(UserStatus.ACTIVE);
                 user.setDisplayName(blankToNull(row.displayName()));
                 user.setStudentId(blankToNull(row.studentId()));
@@ -116,15 +111,12 @@ public class UserImportService {
                 userRepository.save(user);
 
                 created++;
-                if (generatedPassword) {
-                    passwords.add(new UserImportPassword(row.email(), plainPassword));
-                }
             }
         } catch (IOException ex) {
             throw new BusinessException(ErrorCode.INVALID_ARGUMENT, "Failed to read CSV file");
         }
 
-        return new UserImportResponse(created, skipped, errors, passwords);
+        return new UserImportResponse(created, skipped, errors);
     }
 
     private ColumnIndex parseHeader(String headerLine) {
@@ -155,12 +147,21 @@ public class UserImportService {
     private ImportRow parseRow(String[] fields, ColumnIndex columns, int rowNumber, List<UserImportError> errors) {
         String email = readField(fields, columns.email).trim().toLowerCase(Locale.ROOT);
         String linuxUsername = readField(fields, columns.linuxUsername).trim();
+        String initialPassword = readField(fields, columns.initialPassword);
         if (!StringUtils.hasText(email)) {
             errors.add(new UserImportError(rowNumber, "email is required"));
             return null;
         }
         if (!StringUtils.hasText(linuxUsername)) {
             errors.add(new UserImportError(rowNumber, "linux_username is required"));
+            return null;
+        }
+        if (!StringUtils.hasText(initialPassword)) {
+            errors.add(new UserImportError(rowNumber, "initial_password is required"));
+            return null;
+        }
+        if (initialPassword.length() < MIN_PASSWORD_LENGTH) {
+            errors.add(new UserImportError(rowNumber, "initial_password must be at least 8 characters"));
             return null;
         }
         try {
@@ -182,7 +183,7 @@ public class UserImportService {
                 readField(fields, columns.displayName),
                 readField(fields, columns.studentId),
                 readField(fields, columns.cohort),
-                readField(fields, columns.initialPassword),
+                initialPassword,
                 rolesField);
     }
 
@@ -219,6 +220,7 @@ public class UserImportService {
             return switch (name) {
                 case "email" -> email >= 0;
                 case "linux_username" -> linuxUsername >= 0;
+                case "initial_password" -> initialPassword >= 0;
                 default -> false;
             };
         }

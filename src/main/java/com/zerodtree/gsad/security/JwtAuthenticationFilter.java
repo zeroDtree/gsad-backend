@@ -5,6 +5,9 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import com.zerodtree.gsad.domain.user.model.UserStatus;
+import com.zerodtree.gsad.domain.user.persistence.User;
+import com.zerodtree.gsad.domain.user.persistence.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -20,6 +23,7 @@ import java.util.List;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtTokenProvider jwtTokenProvider;
+    private final UserRepository userRepository;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -28,12 +32,19 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String token = resolveToken(request);
 
         if (StringUtils.hasText(token)) {
-            jwtTokenProvider.resolveUserClaims(token).ifPresent(claims -> {
-                List<SimpleGrantedAuthority> authorities = buildAuthorities(claims.roles());
-                JwtAuthenticationToken authentication = new JwtAuthenticationToken(
-                        claims.email(), claims.userId(), authorities);
-                SecurityContextHolder.getContext().setAuthentication(authentication);
-            });
+            jwtTokenProvider.resolveUserClaims(token).flatMap(claims -> {
+                if (claims.userId() == null) {
+                    return java.util.Optional.<User>empty();
+                }
+                return userRepository.findById(claims.userId());
+            }).filter(user -> user.getStatus() == UserStatus.ACTIVE)
+                    .ifPresent(user -> {
+                        List<SimpleGrantedAuthority> authorities =
+                                buildAuthorities(AuthorityUtils.parseRoles(user.getRoles()));
+                        JwtAuthenticationToken authentication = new JwtAuthenticationToken(
+                                user.getEmail(), user.getId(), authorities);
+                        SecurityContextHolder.getContext().setAuthentication(authentication);
+                    });
         }
 
         filterChain.doFilter(request, response);
