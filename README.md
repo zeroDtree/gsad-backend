@@ -68,6 +68,14 @@ Agent env `AGENT_SERVER_ID` must match `t_server.server_id`.
 | `db/migration/` V1–V2 | all | Schema (manual revoke model in V1) |
 | `db/migration-dev/` V3–V4 | dev | Admin user + `gpu-mock-001..100` |
 
+Prod has **no seed data**. After the stack is up, create the first admin from the repo root:
+
+```bash
+ADMIN_EMAIL=admin@example.com ./gsad-backend/deploy/scripts/create-prod-admin.sh
+```
+
+See the root [README.md](../README.md#first-admin-prod-bootstrap) for bootstrap, backup, and prod checklist.
+
 ## Dev / prod
 
 ```bash
