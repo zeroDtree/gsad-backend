@@ -10,6 +10,7 @@ import com.zerodtree.gsad.domain.user.api.UserImportResponse;
 import com.zerodtree.gsad.domain.user.model.UserStatus;
 import com.zerodtree.gsad.domain.user.persistence.User;
 import com.zerodtree.gsad.domain.user.persistence.UserRepository;
+import com.zerodtree.gsad.security.AuthorityUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -168,6 +169,13 @@ public class UserImportService {
             errors.add(new UserImportError(rowNumber, ex.getMessage()));
             return null;
         }
+        String rolesField = readField(fields, columns.roles);
+        if (StringUtils.hasText(rolesField)
+                && AuthorityUtils.parseRoles(rolesField).stream()
+                        .anyMatch(role -> "admin".equalsIgnoreCase(role))) {
+            errors.add(new UserImportError(rowNumber, "admin role cannot be assigned via import"));
+            return null;
+        }
         return new ImportRow(
                 email,
                 linuxUsername,
@@ -175,7 +183,7 @@ public class UserImportService {
                 readField(fields, columns.studentId),
                 readField(fields, columns.cohort),
                 readField(fields, columns.initialPassword),
-                readField(fields, columns.roles));
+                rolesField);
     }
 
     private static String readField(String[] fields, int index) {

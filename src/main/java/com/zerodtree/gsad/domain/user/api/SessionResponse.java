@@ -2,8 +2,7 @@ package com.zerodtree.gsad.domain.user.api;
 
 import java.util.List;
 
-public record AuthResponse(
-        String token,
+public record SessionResponse(
         String email,
         List<String> roles
 ) {}

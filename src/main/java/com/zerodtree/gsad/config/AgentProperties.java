@@ -10,4 +10,5 @@ import org.springframework.context.annotation.Configuration;
 public class AgentProperties {
 
     private String psk;
+    private boolean allowServerRegistration = false;
 }

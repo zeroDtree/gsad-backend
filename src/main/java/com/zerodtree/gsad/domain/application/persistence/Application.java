@@ -1,6 +1,7 @@
 package com.zerodtree.gsad.domain.application.persistence;
 
 import com.zerodtree.gsad.domain.application.model.AuditStatus;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -44,7 +45,7 @@ public class Application {
     @Column(columnDefinition = "TEXT")
     private String comment;
 
-    @Column(name = "idempotency_key", unique = true)
+    @Column(name = "idempotency_key")
     private String idempotencyKey;
 
     @Column(name = "server_ip")
@@ -53,9 +54,11 @@ public class Application {
     @Column(name = "ssh_username")
     private String sshUsername;
 
+    @Convert(converter = EncryptedStringConverter.class)
     @Column(name = "initial_password")
     private String initialPassword;
 
+    @Convert(converter = EncryptedStringConverter.class)
     @Column(name = "ssh_password_plain")
     private String sshPasswordPlain;
 

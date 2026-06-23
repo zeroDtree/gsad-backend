@@ -7,6 +7,7 @@ import com.zerodtree.gsad.domain.server.api.ServerVO;
 import com.zerodtree.gsad.domain.server.model.ServerStatus;
 import com.zerodtree.gsad.domain.server.persistence.Server;
 import com.zerodtree.gsad.domain.server.persistence.ServerRepository;
+import com.zerodtree.gsad.config.AgentProperties;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,6 +21,7 @@ public class ServerService {
 
     private final ServerRepository serverRepository;
     private final ServerMetricsReader metricsReader;
+    private final AgentProperties agentProperties;
 
     @Transactional(readOnly = true)
     public List<ServerVO> listServers() {
@@ -44,6 +46,9 @@ public class ServerService {
 
         Server server = serverRepository.findByServerId(request.serverId())
                 .orElseGet(() -> {
+                    if (!agentProperties.isAllowServerRegistration()) {
+                        throw new BusinessException(ErrorCode.NOT_FOUND, "Server not found");
+                    }
                     Server created = new Server();
                     created.setServerId(request.serverId());
                     created.setSshHost(null);

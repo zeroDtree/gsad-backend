@@ -26,6 +26,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -82,6 +83,54 @@ class ApplicationServiceTest {
         assertThat(saved.getAuditStatus()).isEqualTo(AuditStatus.APPROVED);
         assertThat(saved.getServerId()).isEqualTo("gpu-001");
         assertThat(vo.auditStatus()).isEqualTo("APPROVED");
+    }
+
+    @Test
+    void create_idempotencyKey_scopedToUser() {
+        String sharedKey = "same-key";
+        Application otherUserApp = activeApplication(AuditStatus.APPROVED);
+        otherUserApp.setUserId(2L);
+        otherUserApp.setId("app-other");
+
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.get("idempotency:1:" + sharedKey)).thenReturn(null);
+        when(applicationRepository.findByIdempotencyKeyAndUserId(sharedKey, 1L)).thenReturn(Optional.empty());
+
+        User user = new User();
+        user.setId(1L);
+        user.setEmail("user1@example.com");
+        user.setLinuxUsername("user1");
+
+        Server server = new Server();
+        server.setServerId("gpu-001");
+        server.setResourceLevel("H100");
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(serverService.requireByServerId("gpu-001")).thenReturn(server);
+        when(linuxUsernameResolver.resolve(user)).thenReturn("user1");
+        when(applicationPasswordGenerator.resolvePassword(null)).thenReturn("generated-pass");
+        when(applicationRepository.save(any(Application.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        applicationService.create(1L, sharedKey, new CreateApplicationRequest("gpu-001", null));
+
+        verify(applicationRepository, never()).findById("app-other");
+        verify(applicationRepository).findByIdempotencyKeyAndUserId(sharedKey, 1L);
+    }
+
+    @Test
+    void create_idempotencyKey_returnsExistingForSameUser() {
+        String key = "user-key";
+        Application existing = activeApplication(AuditStatus.APPROVED);
+        existing.setId("app-existing");
+
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.get("idempotency:1:" + key)).thenReturn("app-existing");
+        when(applicationRepository.findByIdAndUserId("app-existing", 1L)).thenReturn(Optional.of(existing));
+
+        ApplicationVO vo = applicationService.create(1L, key, new CreateApplicationRequest("gpu-001", null));
+
+        assertThat(vo.id()).isEqualTo("app-existing");
+        verify(applicationRepository, never()).save(any());
     }
 
     @Test

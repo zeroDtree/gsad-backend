@@ -38,7 +38,7 @@ CREATE TABLE IF NOT EXISTS t_application (
     resource_level       VARCHAR(255)    NOT NULL,
     audit_status         VARCHAR(20)     NOT NULL DEFAULT 'APPROVED',
     comment              TEXT,
-    idempotency_key      VARCHAR(64)     UNIQUE,
+    idempotency_key      VARCHAR(64),
     server_ip            VARCHAR(255),
     ssh_username         VARCHAR(255),
     initial_password     VARCHAR(255),
@@ -46,3 +46,7 @@ CREATE TABLE IF NOT EXISTS t_application (
     created_at           TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
     updated_at           TIMESTAMPTZ     NOT NULL DEFAULT NOW()
 );
+
+CREATE UNIQUE INDEX uq_application_user_idempotency
+    ON t_application (user_id, idempotency_key)
+    WHERE idempotency_key IS NOT NULL;

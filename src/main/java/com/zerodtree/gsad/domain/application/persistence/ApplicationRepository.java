@@ -11,7 +11,7 @@ import java.util.Optional;
 
 public interface ApplicationRepository extends JpaRepository<Application, String> {
 
-    Optional<Application> findByIdempotencyKey(String idempotencyKey);
+    Optional<Application> findByIdempotencyKeyAndUserId(String idempotencyKey, Long userId);
 
     Page<Application> findByUserIdOrderByUpdatedAtDesc(Long userId, Pageable pageable);
 

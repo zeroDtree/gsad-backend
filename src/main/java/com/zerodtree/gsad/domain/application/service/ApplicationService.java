@@ -42,7 +42,7 @@ public class ApplicationService {
     @Transactional
     public ApplicationVO create(Long userId, String idempotencyKey, CreateApplicationRequest request) {
         if (StringUtils.hasText(idempotencyKey)) {
-            Optional<ApplicationVO> existing = findByIdempotencyKey(idempotencyKey);
+            Optional<ApplicationVO> existing = findByIdempotencyKey(idempotencyKey, userId);
             if (existing.isPresent()) {
                 return existing.get();
             }
@@ -68,7 +68,7 @@ public class ApplicationService {
         applicationRepository.save(application);
         if (StringUtils.hasText(idempotencyKey)) {
             redisTemplate.opsForValue().set(
-                    IDEMPOTENCY_REDIS_PREFIX + idempotencyKey,
+                    idempotencyRedisKey(userId, idempotencyKey),
                     application.getId(),
                     IDEMPOTENCY_TTL);
         }
@@ -146,12 +146,17 @@ public class ApplicationService {
                 safeSize);
     }
 
-    private Optional<ApplicationVO> findByIdempotencyKey(String idempotencyKey) {
-        String cachedId = redisTemplate.opsForValue().get(IDEMPOTENCY_REDIS_PREFIX + idempotencyKey);
+    private Optional<ApplicationVO> findByIdempotencyKey(String idempotencyKey, Long userId) {
+        String cachedId = redisTemplate.opsForValue().get(idempotencyRedisKey(userId, idempotencyKey));
         if (StringUtils.hasText(cachedId)) {
-            return applicationRepository.findById(cachedId).map(ApplicationMapper::toVo);
+            return applicationRepository.findByIdAndUserId(cachedId, userId).map(ApplicationMapper::toVo);
         }
-        return applicationRepository.findByIdempotencyKey(idempotencyKey).map(ApplicationMapper::toVo);
+        return applicationRepository.findByIdempotencyKeyAndUserId(idempotencyKey, userId)
+                .map(ApplicationMapper::toVo);
+    }
+
+    private static String idempotencyRedisKey(Long userId, String idempotencyKey) {
+        return IDEMPOTENCY_REDIS_PREFIX + userId + ":" + idempotencyKey;
     }
 
     private static String generateApplicationId() {
