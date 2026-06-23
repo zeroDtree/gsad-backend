@@ -6,5 +6,6 @@ public enum ErrorCode {
     FORBIDDEN,              // 403
     NOT_FOUND,              // 404
     STATE_CONFLICT,         // 409
-    RATE_LIMITED            // 429
+    RATE_LIMITED,           // 429
+    INTERNAL_ERROR          // 500 — unhandled exceptions only
 }

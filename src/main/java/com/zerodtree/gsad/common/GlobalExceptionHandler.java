@@ -22,6 +22,7 @@ public class GlobalExceptionHandler {
             case NOT_FOUND -> HttpStatus.NOT_FOUND;
             case STATE_CONFLICT -> HttpStatus.CONFLICT;
             case RATE_LIMITED -> HttpStatus.TOO_MANY_REQUESTS;
+            case INTERNAL_ERROR -> HttpStatus.INTERNAL_SERVER_ERROR;
         };
         return ResponseEntity.status(status)
                 .body(ApiResponse.error(ex.getErrorCode(), ex.getMessage()));
@@ -39,6 +40,6 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleGeneral(Exception ex) {
         return ResponseEntity.internalServerError()
-                .body(new ApiResponse<>("INTERNAL_ERROR", ex.getMessage(), null));
+                .body(ApiResponse.error(ErrorCode.INTERNAL_ERROR, ex.getMessage()));
     }
 }

@@ -1,5 +1,0 @@
-# Local development overrides: expose backend on the host (infra stays on the internal network).
-services:
-  backend:
-    ports:
-      - "${BACKEND_PORT:-8080}:8080"

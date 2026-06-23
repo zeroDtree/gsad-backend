@@ -10,7 +10,7 @@ Spring Boot 4 / Java 21 · PostgreSQL 16 · Redis (idempotency) · Flyway · JWT
 
 | Method | Path | Auth |
 |--------|------|------|
-| POST | `/api/auth/register`, `/api/auth/login` | none |
+| POST | `/api/auth/login` | none |
 | GET | `/api/servers` | JWT |
 | POST | `/api/applications` | JWT (+ optional `Idempotency-Key`) |
 | DELETE | `/api/applications/{id}` | JWT — cancel (`APPROVED`) or revoke access (`ACTIVE`) |
@@ -62,15 +62,15 @@ Agent env `AGENT_SERVER_ID` must match `t_server.server_id`.
 cp .env.example .env   # edit secrets; set SPRING_PROFILES_ACTIVE=prod for production
 ./mvnw test
 
-# Dev + mocks (API on http://localhost:${BACKEND_PORT:-8080})
-docker compose -f docker-compose.yml -f docker-compose.dev.yml --profile mock up
+# Dev stack with mock agents — from repo root:
+#   cp dockers/.env.example .env
+#   docker compose --profile mock up --build
+# API on http://localhost:8080 (see root README.md)
 
-# Prod (no host port; expose via your ingress/LB)
-docker compose up -d
+# Local backend only (no Docker):
+./mvnw spring-boot:run
 ```
 
 GPU agents implement the Internal API (`X-Agent-PSK`); see table above.
-
-If dev port bind fails, set `BACKEND_PORT` in `.env` (e.g. `18080`) or stop other stacks using 8080.
 
 Production: route `/api` to `backend:8080` via your Traefik/nginx; block `/api/internal` at the edge.
