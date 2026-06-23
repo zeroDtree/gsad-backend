@@ -80,7 +80,22 @@ public class ApplicationService {
     public ApplicationVO revoke(Long userId, String applicationId) {
         Application application = applicationRepository.findByIdAndUserId(applicationId, userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "Application not found"));
+        revokeApplication(application);
+        applicationRepository.save(application);
+        return ApplicationMapper.toVo(application);
+    }
 
+    @Transactional
+    public void revokeAllForUser(Long userId) {
+        for (Application application : applicationRepository.findByUserId(userId)) {
+            if (canRevoke(application.getAuditStatus())) {
+                revokeApplication(application);
+                applicationRepository.save(application);
+            }
+        }
+    }
+
+    void revokeApplication(Application application) {
         AuditStatus status = application.getAuditStatus();
         switch (status) {
             case APPROVED -> {
@@ -95,15 +110,18 @@ public class ApplicationService {
                 application.setSshPasswordPlain(null);
             }
             case REVOKING -> {
-                return ApplicationMapper.toVo(application);
+                // idempotent
             }
             case REVOKED, CANCELLED, FAILED_GRANT ->
                     throw new BusinessException(ErrorCode.STATE_CONFLICT, "Application cannot be revoked");
             default -> throw new BusinessException(ErrorCode.STATE_CONFLICT, "Application cannot be revoked");
         }
+    }
 
-        applicationRepository.save(application);
-        return ApplicationMapper.toVo(application);
+    private static boolean canRevoke(AuditStatus status) {
+        return status == AuditStatus.APPROVED
+                || status == AuditStatus.ACTIVE
+                || status == AuditStatus.FAILED_REVOKE;
     }
 
     @Transactional(readOnly = true)

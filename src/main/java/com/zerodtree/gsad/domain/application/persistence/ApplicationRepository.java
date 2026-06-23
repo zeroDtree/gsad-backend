@@ -5,6 +5,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -20,4 +21,10 @@ public interface ApplicationRepository extends JpaRepository<Application, String
     List<Application> findByAuditStatusAndServerId(AuditStatus auditStatus, String serverId);
 
     Optional<Application> findByIdAndUserId(String id, Long userId);
+
+    List<Application> findByUserId(Long userId);
+
+    long countByUserIdAndAuditStatusIn(Long userId, Collection<AuditStatus> statuses);
+
+    void deleteByUserId(Long userId);
 }
