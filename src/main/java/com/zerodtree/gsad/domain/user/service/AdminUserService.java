@@ -45,6 +45,7 @@ public class AdminUserService {
     private final UserRepository userRepository;
     private final ApplicationRepository applicationRepository;
     private final ApplicationService applicationService;
+    private final UserPasswordService userPasswordService;
 
     @Transactional(readOnly = true)
     public PageResult<AdminUserVO> list(String cohort, String status, String role, int page, int pageSize) {
@@ -87,6 +88,14 @@ public class AdminUserService {
         }
         userRepository.save(user);
         return toVo(user);
+    }
+
+    @Transactional
+    public void resetPassword(Long id, String newPassword) {
+        User user = requireUser(id);
+        assertAdminMutable(user);
+        userPasswordService.applyPassword(user, newPassword);
+        userRepository.save(user);
     }
 
     @Transactional

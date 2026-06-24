@@ -11,7 +11,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockMultipartFile;
-import org.springframework.security.crypto.password.PasswordEncoder;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -25,7 +24,7 @@ class UserImportServiceTest {
     private UserRepository userRepository;
 
     @Mock
-    private PasswordEncoder passwordEncoder;
+    private UserPasswordService userPasswordService;
 
     @Mock
     private LinuxUsernameResolver linuxUsernameResolver;
@@ -45,7 +44,6 @@ class UserImportServiceTest {
         when(userRepository.existsByLinuxUsername("alice")).thenReturn(false);
         when(userRepository.existsByStudentId("2024001")).thenReturn(false);
         when(linuxUsernameResolver.validateAndReturn("alice")).thenReturn("alice");
-        when(passwordEncoder.encode("TempPass2024!")).thenReturn("bcrypt-hash");
         when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         UserImportResponse response = userImportService.importCsv(file);
@@ -62,6 +60,7 @@ class UserImportServiceTest {
         assertThat(saved.getDisplayName()).isEqualTo("Alice");
         assertThat(saved.getStudentId()).isEqualTo("2024001");
         assertThat(saved.getCohort()).isEqualTo("2024");
+        verify(userPasswordService).applyPassword(saved, "TempPass2024!");
     }
 
     @Test

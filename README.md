@@ -11,6 +11,7 @@ Spring Boot 4 / Java 21 · PostgreSQL 16 · Redis (idempotency) · Flyway · JWT
 | Method | Path | Auth |
 |--------|------|------|
 | POST | `/api/auth/login` | none |
+| POST | `/api/auth/change-password` | JWT |
 | GET | `/api/servers` | JWT |
 | POST | `/api/applications` | JWT (+ optional `Idempotency-Key`) |
 | DELETE | `/api/applications/{id}` | JWT — cancel (`APPROVED`) or revoke access (`ACTIVE`) |
@@ -24,6 +25,7 @@ Create body: `serverId`, optional `sshPassword`.
 |--------|------|------|
 | GET | `/api/admin/users` | JWT (admin) |
 | PATCH | `/api/admin/users/{id}` | JWT (admin) |
+| POST | `/api/admin/users/{id}/reset-password` | JWT (admin) |
 | DELETE | `/api/admin/users/{id}` | JWT (admin); query `revokeSsh` |
 | POST | `/api/admin/users/bulk-disable` | JWT (admin) |
 | POST | `/api/admin/users/bulk-enable` | JWT (admin) |

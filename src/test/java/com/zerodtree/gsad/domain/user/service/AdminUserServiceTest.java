@@ -51,6 +51,9 @@ class AdminUserServiceTest {
     @Mock
     private ApplicationService applicationService;
 
+    @Mock
+    private UserPasswordService userPasswordService;
+
     @InjectMocks
     private AdminUserService adminUserService;
 
@@ -106,6 +109,30 @@ class AdminUserServiceTest {
 
         assertThatThrownBy(() -> adminUserService.update(
                         1L, new UpdateAdminUserRequest(null, null, null, null, UserStatus.INACTIVE)))
+                .isInstanceOf(BusinessException.class)
+                .extracting(ex -> ((BusinessException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.FORBIDDEN);
+    }
+
+    @Test
+    void resetPassword_success() {
+        User user = sampleUser(2L, "student@example.com");
+        when(userRepository.findById(2L)).thenReturn(Optional.of(user));
+        when(userRepository.save(user)).thenReturn(user);
+
+        adminUserService.resetPassword(2L, "NewPass123!");
+
+        verify(userPasswordService).applyPassword(user, "NewPass123!");
+        verify(userRepository).save(user);
+    }
+
+    @Test
+    void resetPassword_admin_forbidden() {
+        User admin = sampleUser(1L, "admin@gsad.local");
+        admin.setRoles("admin");
+        when(userRepository.findById(1L)).thenReturn(Optional.of(admin));
+
+        assertThatThrownBy(() -> adminUserService.resetPassword(1L, "NewPass123!"))
                 .isInstanceOf(BusinessException.class)
                 .extracting(ex -> ((BusinessException) ex).getErrorCode())
                 .isEqualTo(ErrorCode.FORBIDDEN);

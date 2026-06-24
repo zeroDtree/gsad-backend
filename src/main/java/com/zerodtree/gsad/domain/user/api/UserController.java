@@ -5,6 +5,7 @@ import com.zerodtree.gsad.common.BusinessException;
 import com.zerodtree.gsad.common.ErrorCode;
 import com.zerodtree.gsad.domain.user.service.UserService;
 import com.zerodtree.gsad.security.AuthCookieSupport;
+import com.zerodtree.gsad.security.CurrentUserId;
 import com.zerodtree.gsad.security.JwtAuthenticationToken;
 import com.zerodtree.gsad.security.LoginRateLimitService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -85,5 +86,18 @@ public class UserController {
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, authCookieSupport.clearTokenCookie(secure).toString())
                 .body(ApiResponse.ok(null));
+    }
+
+    @PostMapping("/change-password")
+    @Operation(summary = "Change password for the current user")
+    @SecurityRequirement(name = "sessionCookie")
+    public ResponseEntity<ApiResponse<SessionResponse>> changePassword(
+            @CurrentUserId Long userId,
+            @Valid @RequestBody ChangePasswordRequest body) {
+        var result = userService.changePassword(userId, body);
+        boolean secure = activeProfile.contains("prod");
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, authCookieSupport.createTokenCookie(result.token(), secure).toString())
+                .body(ApiResponse.ok(new SessionResponse(result.email(), result.roles())));
     }
 }

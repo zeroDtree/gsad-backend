@@ -3,6 +3,7 @@ package com.zerodtree.gsad.domain.user.service;
 import com.zerodtree.gsad.common.BusinessException;
 import com.zerodtree.gsad.common.ErrorCode;
 import com.zerodtree.gsad.domain.application.service.LinuxUsernameResolver;
+import com.zerodtree.gsad.domain.user.PasswordPolicy;
 import com.zerodtree.gsad.domain.user.api.UserImportError;
 import com.zerodtree.gsad.domain.user.api.UserImportResponse;
 import com.zerodtree.gsad.domain.user.model.UserStatus;
@@ -10,7 +11,6 @@ import com.zerodtree.gsad.domain.user.persistence.User;
 import com.zerodtree.gsad.domain.user.persistence.UserRepository;
 import com.zerodtree.gsad.security.AuthorityUtils;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -30,12 +30,11 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class UserImportService {
 
-    private static final int MIN_PASSWORD_LENGTH = 8;
     private static final List<String> REQUIRED_HEADERS =
             List.of("email", "linux_username", "initial_password");
 
     private final UserRepository userRepository;
-    private final PasswordEncoder passwordEncoder;
+    private final UserPasswordService userPasswordService;
     private final LinuxUsernameResolver linuxUsernameResolver;
 
     @Transactional
@@ -102,7 +101,7 @@ public class UserImportService {
                 User user = new User();
                 user.setEmail(row.email());
                 user.setLinuxUsername(row.linuxUsername());
-                user.setPassword(passwordEncoder.encode(row.initialPassword()));
+                userPasswordService.applyPassword(user, row.initialPassword());
                 user.setStatus(UserStatus.ACTIVE);
                 user.setDisplayName(blankToNull(row.displayName()));
                 user.setStudentId(blankToNull(row.studentId()));
@@ -160,7 +159,7 @@ public class UserImportService {
             errors.add(new UserImportError(rowNumber, "initial_password is required"));
             return null;
         }
-        if (initialPassword.length() < MIN_PASSWORD_LENGTH) {
+        if (initialPassword.length() < PasswordPolicy.MIN_LENGTH) {
             errors.add(new UserImportError(rowNumber, "initial_password must be at least 8 characters"));
             return null;
         }

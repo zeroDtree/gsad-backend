@@ -53,6 +53,14 @@ public class AdminUserController {
         return ApiResponse.ok(adminUserService.update(id, request));
     }
 
+    @PostMapping("/{id}/reset-password")
+    @Operation(summary = "Reset user login password (admin only)")
+    public ResponseEntity<Void> resetPassword(
+            @PathVariable Long id, @Valid @RequestBody ResetUserPasswordRequest request) {
+        adminUserService.resetPassword(id, request.newPassword());
+        return ResponseEntity.noContent().build();
+    }
+
     @DeleteMapping("/{id}")
     @Operation(summary = "Delete user (admin only)")
     public ResponseEntity<?> deleteUser(

@@ -2,6 +2,7 @@ package com.zerodtree.gsad.domain.user.service;
 
 import com.zerodtree.gsad.common.BusinessException;
 import com.zerodtree.gsad.common.ErrorCode;
+import com.zerodtree.gsad.domain.user.api.ChangePasswordRequest;
 import com.zerodtree.gsad.domain.user.api.LoginRequest;
 import com.zerodtree.gsad.domain.user.model.UserStatus;
 import com.zerodtree.gsad.domain.user.persistence.User;
@@ -19,6 +20,7 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final UserPasswordService userPasswordService;
     private final JwtTokenProvider jwtTokenProvider;
 
     @Transactional(readOnly = true)
@@ -31,6 +33,24 @@ public class UserService {
         if (user.getStatus() != UserStatus.ACTIVE) {
             throw new BusinessException(ErrorCode.FORBIDDEN, "Account is inactive");
         }
+        var roles = AuthorityUtils.parseRoles(user.getRoles());
+        String token = jwtTokenProvider.generateToken(user.getEmail(), roles, user.getId());
+        return new LoginResult(token, user.getEmail(), roles);
+    }
+
+    @Transactional
+    public LoginResult changePassword(Long userId, ChangePasswordRequest request) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHORIZED, "Not authenticated"));
+        if (user.getStatus() != UserStatus.ACTIVE) {
+            throw new BusinessException(ErrorCode.FORBIDDEN, "Account is inactive");
+        }
+        userPasswordService.assertMatches(user, request.currentPassword());
+        if (request.currentPassword().equals(request.newPassword())) {
+            throw new BusinessException(ErrorCode.INVALID_ARGUMENT, "New password must differ from current password");
+        }
+        userPasswordService.applyPassword(user, request.newPassword());
+        userRepository.save(user);
         var roles = AuthorityUtils.parseRoles(user.getRoles());
         String token = jwtTokenProvider.generateToken(user.getEmail(), roles, user.getId());
         return new LoginResult(token, user.getEmail(), roles);
