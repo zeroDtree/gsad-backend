@@ -37,14 +37,7 @@ Agents pull tasks; gsad does not call agents outbound. Each request requires:
 - Header `X-Agent-Server-Id`: must match JSON `serverId`
 - Header `X-Agent-PSK`: `HMAC-SHA256(serverId, AGENT_MASTER_SECRET)` (hex)
 
-Derive a host PSK (run on a secure admin machine; prompts for master secret twice, never reads env):
-
-```bash
-./deploy/scripts/derive-agent-psk.sh <serverId>
-# or: AGENT_PSK=$(./deploy/scripts/derive-agent-psk.sh gpu-node-01)
-```
-
-Copy the hex output to the agent's `AGENT_PSK`. Do not store `AGENT_MASTER_SECRET` on GPU hosts.
+Do not deploy `AGENT_MASTER_SECRET` on GPU hosts.
 
 | Path | Purpose |
 |------|---------|
@@ -80,26 +73,13 @@ Agent env `AGENT_SERVER_ID` must match `t_server.server_id`.
 | `db/migration/` V1–V2 | all | Schema (manual revoke model in V1) |
 | `db/migration-dev/` V3–V4 | dev | Admin user + `gpu-mock-001..100` |
 
-Prod has **no seed data**. After the stack is up, create the first admin from the repo root:
-
-```bash
-ADMIN_EMAIL=admin@example.com ./gsad-backend/deploy/scripts/create-prod-admin.sh
-```
-
-See the root [README.md](../README.md#first-admin-prod-bootstrap) for bootstrap, backup, and prod checklist.
+Prod has **no seed data**.
 
 ## Dev / prod
 
 ```bash
 cp .env.example .env   # edit secrets; set SPRING_PROFILES_ACTIVE=prod for production
 ./mvnw test
-
-# Dev stack with mock agents — from repo root:
-#   cp dockers/.env.example .env
-#   docker compose --profile mock up --build
-# API on http://localhost:8080 (see root README.md)
-
-# Local backend only (no Docker):
 ./mvnw spring-boot:run
 ```
 
