@@ -15,7 +15,7 @@ import org.springframework.util.StringUtils;
 public class ProductionSecurityValidator {
 
     private static final String DEFAULT_JWT_SECRET = "change-me-in-production-at-least-32-chars";
-    private static final String DEFAULT_AGENT_PSK = "change-me-in-production";
+    private static final String DEFAULT_AGENT_MASTER_SECRET = "change-me-in-production";
     private static final String DEFAULT_ENCRYPTION_KEY = "change-me-32-chars-minimum";
 
     private final JwtConfig jwtConfig;
@@ -23,6 +23,9 @@ public class ProductionSecurityValidator {
 
     @Value("${credentials.encryption-key:}")
     private String credentialsEncryptionKey;
+
+    @Value("${BACKEND_AGENT_BIND:127.0.0.1}")
+    private String backendAgentBind;
 
     @PostConstruct
     void validateSecrets() {
@@ -35,10 +38,13 @@ public class ProductionSecurityValidator {
                     "Production requires JWT_SECRET env var with at least 32 characters (not the default value)");
         }
 
-        String psk = agentProperties.getPsk();
-        if (psk == null || psk.isBlank() || DEFAULT_AGENT_PSK.equals(psk)) {
+        String masterSecret = agentProperties.getMasterSecret();
+        if (masterSecret == null
+                || masterSecret.isBlank()
+                || DEFAULT_AGENT_MASTER_SECRET.equals(masterSecret)
+                || masterSecret.length() < 32) {
             throw new IllegalStateException(
-                    "Production requires AGENT_PSK env var (not the default value)");
+                    "Production requires AGENT_MASTER_SECRET env var with at least 32 characters (not the default value)");
         }
 
         if (!StringUtils.hasText(credentialsEncryptionKey)
@@ -46,6 +52,11 @@ public class ProductionSecurityValidator {
                 || credentialsEncryptionKey.length() < 32) {
             throw new IllegalStateException(
                     "Production requires CREDENTIALS_ENCRYPTION_KEY with at least 32 characters");
+        }
+
+        if ("0.0.0.0".equals(backendAgentBind.trim())) {
+            throw new IllegalStateException(
+                    "Production forbids BACKEND_AGENT_BIND=0.0.0.0; bind to 127.0.0.1 or a private address");
         }
     }
 }

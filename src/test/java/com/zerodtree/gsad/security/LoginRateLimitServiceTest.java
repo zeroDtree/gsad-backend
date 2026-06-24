@@ -9,7 +9,9 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
+import org.springframework.mock.web.MockHttpServletRequest;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -67,5 +69,14 @@ class LoginRateLimitServiceTest {
         verify(valueOperations).increment("login:email:user@example.com");
         verify(redisTemplate).expire(eq("login:ip:127.0.0.1"), any());
         verify(redisTemplate).expire(eq("login:email:user@example.com"), any());
+    }
+
+    @Test
+    void resolveClientIp_ignoresSpoofedForwardedHeader() {
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setRemoteAddr("10.0.0.5");
+        request.addHeader("X-Forwarded-For", "1.2.3.4");
+
+        assertThat(LoginRateLimitService.resolveClientIp(request)).isEqualTo("10.0.0.5");
     }
 }

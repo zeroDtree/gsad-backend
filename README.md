@@ -4,7 +4,7 @@ Spring Boot API for GPU Server Access Dashboard. Public API spec (dev): `/v3/api
 
 ## Stack
 
-Spring Boot 4 / Java 21 · PostgreSQL 16 · Redis (idempotency) · Flyway · JWT + `X-Agent-PSK`
+Spring Boot 4 / Java 21 · PostgreSQL 16 · Redis (idempotency) · Flyway · JWT + per-server agent HMAC (`X-Agent-Server-Id`, `X-Agent-PSK`)
 
 ## Public API
 
@@ -30,9 +30,21 @@ Create body: `serverId`, optional `sshPassword`.
 | POST | `/api/admin/users/bulk-delete` | JWT (admin) |
 | POST | `/api/admin/users/import` | JWT (admin); multipart CSV |
 
-## Internal API (`X-Agent-PSK`)
+## Internal API (agent HMAC auth)
 
-Agents pull tasks; gsad does not call agents outbound.
+Agents pull tasks; gsad does not call agents outbound. Each request requires:
+
+- Header `X-Agent-Server-Id`: must match JSON `serverId`
+- Header `X-Agent-PSK`: `HMAC-SHA256(serverId, AGENT_MASTER_SECRET)` (hex)
+
+Derive a host PSK (run on a secure admin machine; prompts for master secret twice, never reads env):
+
+```bash
+./deploy/scripts/derive-agent-psk.sh <serverId>
+# or: AGENT_PSK=$(./deploy/scripts/derive-agent-psk.sh gpu-node-01)
+```
+
+Copy the hex output to the agent's `AGENT_PSK`. Do not store `AGENT_MASTER_SECRET` on GPU hosts.
 
 | Path | Purpose |
 |------|---------|
@@ -59,7 +71,7 @@ Agent env `AGENT_SERVER_ID` must match `t_server.server_id`.
 | `DB_HOST`, `DB_USER`, `DB_PASSWORD` | yes |
 | `REDIS_HOST`, `REDIS_PASSWORD` | yes |
 | `JWT_SECRET` (≥32 chars) | yes |
-| `AGENT_PSK` | yes |
+| `AGENT_MASTER_SECRET` (≥32 chars) | yes |
 
 ## Flyway
 
@@ -91,6 +103,6 @@ cp .env.example .env   # edit secrets; set SPRING_PROFILES_ACTIVE=prod for produ
 ./mvnw spring-boot:run
 ```
 
-GPU agents implement the Internal API (`X-Agent-PSK`); see table above.
+GPU agents implement the Internal API (see table above).
 
 Production: route `/api` to `backend:8080` via your Traefik/nginx; block `/api/internal` at the edge.

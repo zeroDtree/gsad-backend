@@ -9,6 +9,6 @@ import org.springframework.context.annotation.Configuration;
 @Data
 public class AgentProperties {
 
-    private String psk;
+    private String masterSecret;
     private boolean allowServerRegistration = false;
 }

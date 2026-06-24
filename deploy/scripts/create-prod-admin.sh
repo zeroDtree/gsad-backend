@@ -1,28 +1,51 @@
 #!/usr/bin/env bash
-#
+
+# @help-begin
 # Create the first production admin user (idempotent).
 # Run from the repo root after the stack is up and postgres is healthy.
 #
-# Environment:
-#   ADMIN_EMAIL            (required) Admin email
-#   ADMIN_PASSWORD         Plain password; prompts if unset. Do not store in .env.
-#   ADMIN_LINUX_USERNAME   Linux username (default: gsadadmin)
-#   ADMIN_DISPLAY_NAME     Display name (default: Admin)
-#   COMPOSE_FILE           Optional docker compose file override
+# Usage:
+#   ./create-prod-admin.sh
+#
+# Env: ADMIN_EMAIL — admin email (required)
+# Env: ADMIN_PASSWORD — plain password; prompts if unset (do not store in .env)
+# Env: ADMIN_LINUX_USERNAME — Linux username (default: gsadadmin)
+# Env: ADMIN_DISPLAY_NAME — display name (default: Admin)
+# Env: COMPOSE_FILE — optional docker compose file override
+# Env: SPRING_PROFILES_ACTIVE — selects compose files when COMPOSE_FILE is unset
 #
 # Examples:
 #   ADMIN_EMAIL=admin@example.com ./gsad-backend/deploy/scripts/create-prod-admin.sh
 #   ADMIN_EMAIL=admin@example.com ADMIN_PASSWORD='secret' ./gsad-backend/deploy/scripts/create-prod-admin.sh
-#
+# @help-end
+
+# @help-options-begin
+#   -h, --help              show help
+# @help-options-end
+
 set -euo pipefail
+
+log() { printf 'create-prod-admin: %s\n' "$*"; }
+die() { printf 'create-prod-admin: ERROR: %s\n' "$*" >&2; exit 1; }
+
+usage() {
+  awk '/^# @help-begin$/{f=1; next} /^# @help-end$/{f=0} f' "$0"
+  printf '%s\n' '#' 'Options:' '#'
+  awk '/^# @help-options-begin$/{f=1; next} /^# @help-options-end$/{f=0} f' "$0"
+  exit 0
+}
+
+for arg in "$@"; do
+  case "$arg" in
+    -h|--help) usage ;;
+    *) die "Unexpected argument: $arg (see --help)" ;;
+  esac
+done
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
 
 LINUX_USERNAME_PATTERN='^[a-z_][a-z0-9_-]{0,31}$'
-
-log() { printf 'create-prod-admin: %s\n' "$*"; }
-die() { printf 'create-prod-admin: ERROR: %s\n' "$*" >&2; exit 1; }
 
 escape_sql_literal() {
   local s="$1"
@@ -55,7 +78,9 @@ if [[ -f .env ]]; then
   set +a
 fi
 
-: "${ADMIN_EMAIL:?Set ADMIN_EMAIL (e.g. admin@example.com)}"
+if [[ -z "${ADMIN_EMAIL:-}" ]]; then
+  die "ADMIN_EMAIL is required (see --help)"
+fi
 
 ADMIN_LINUX_USERNAME="${ADMIN_LINUX_USERNAME:-gsadadmin}"
 ADMIN_DISPLAY_NAME="${ADMIN_DISPLAY_NAME:-Admin}"
