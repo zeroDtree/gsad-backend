@@ -7,6 +7,8 @@ import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.Arrays;
 
 @Component
@@ -37,9 +39,25 @@ public class SecuritySecretsValidator {
         assertSecret("AGENT_MASTER_SECRET", agentProperties.getMasterSecret(), DEFAULT_AGENT_MASTER_SECRET);
         assertSecret("CREDENTIALS_ENCRYPTION_KEY", credentialsEncryptionKey, DEFAULT_ENCRYPTION_KEY);
 
-        if (isProdProfile() && "0.0.0.0".equals(backendAgentBind.trim())) {
-            throw new IllegalStateException(
-                    "Production forbids BACKEND_AGENT_BIND=0.0.0.0; bind to 127.0.0.1 or a private address");
+        if (isProdProfile()) {
+            assertAgentBindIsPrivateOrLoopback(backendAgentBind);
+        }
+    }
+
+    private void assertAgentBindIsPrivateOrLoopback(String bind) {
+        String host = bind.trim();
+        try {
+            InetAddress address = InetAddress.getByName(host);
+            if (address.isAnyLocalAddress()) {
+                throw new IllegalStateException("Production forbids BACKEND_AGENT_BIND=0.0.0.0");
+            }
+            if (!address.isLoopbackAddress() && !address.isSiteLocalAddress()) {
+                throw new IllegalStateException(
+                        "Production requires BACKEND_AGENT_BIND on loopback or RFC1918 address, got: "
+                                + host);
+            }
+        } catch (UnknownHostException ex) {
+            throw new IllegalStateException("Invalid BACKEND_AGENT_BIND: " + host, ex);
         }
     }
 

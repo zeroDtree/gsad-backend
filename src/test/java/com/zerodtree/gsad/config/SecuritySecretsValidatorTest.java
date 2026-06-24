@@ -12,7 +12,17 @@ import static org.mockito.Mockito.when;
 class SecuritySecretsValidatorTest {
 
     @Test
+    void validateSecrets_rejectsAnyLocalAgentBindInProd() {
+        assertAgentBindRejectedInProd("0.0.0.0", "BACKEND_AGENT_BIND=0.0.0.0");
+    }
+
+    @Test
     void validateSecrets_rejectsPublicAgentBindInProd() {
+        assertAgentBindRejectedInProd("203.0.113.1", "RFC1918");
+    }
+
+    @Test
+    void validateSecrets_acceptsRfc1918AgentBindInProd() {
         Environment environment = mock(Environment.class);
         when(environment.getActiveProfiles()).thenReturn(new String[] {"prod"});
 
@@ -24,11 +34,9 @@ class SecuritySecretsValidatorTest {
         SecuritySecretsValidator validator = new SecuritySecretsValidator(
                 environment, jwtConfig, agentProperties);
         ReflectionTestUtils.setField(validator, "credentialsEncryptionKey", "prod-credentials-key-32-chars-min");
-        ReflectionTestUtils.setField(validator, "backendAgentBind", "0.0.0.0");
+        ReflectionTestUtils.setField(validator, "backendAgentBind", "192.168.1.10");
 
-        assertThatThrownBy(validator::validateSecrets)
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("BACKEND_AGENT_BIND=0.0.0.0");
+        assertThatCode(validator::validateSecrets).doesNotThrowAnyException();
     }
 
     @Test
@@ -63,5 +71,24 @@ class SecuritySecretsValidatorTest {
         ReflectionTestUtils.setField(validator, "backendAgentBind", "0.0.0.0");
 
         assertThatCode(validator::validateSecrets).doesNotThrowAnyException();
+    }
+
+    private void assertAgentBindRejectedInProd(String bind, String messageFragment) {
+        Environment environment = mock(Environment.class);
+        when(environment.getActiveProfiles()).thenReturn(new String[] {"prod"});
+
+        JwtConfig jwtConfig = mock(JwtConfig.class);
+        AgentProperties agentProperties = mock(AgentProperties.class);
+        when(jwtConfig.getSecret()).thenReturn("prod-jwt-secret-with-enough-length-32");
+        when(agentProperties.getMasterSecret()).thenReturn("prod-agent-master-secret-32-chars-min");
+
+        SecuritySecretsValidator validator = new SecuritySecretsValidator(
+                environment, jwtConfig, agentProperties);
+        ReflectionTestUtils.setField(validator, "credentialsEncryptionKey", "prod-credentials-key-32-chars-min");
+        ReflectionTestUtils.setField(validator, "backendAgentBind", bind);
+
+        assertThatThrownBy(validator::validateSecrets)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining(messageFragment);
     }
 }
