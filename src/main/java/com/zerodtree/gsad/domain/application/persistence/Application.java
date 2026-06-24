@@ -35,7 +35,7 @@ public class Application {
     @Column(name = "server_id", nullable = false)
     private String serverId;
 
-    @Column(name = "resource_level", nullable = false)
+    @Column(name = "resource_level")
     private String resourceLevel;
 
     @Enumerated(EnumType.STRING)

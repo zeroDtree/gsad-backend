@@ -36,7 +36,7 @@ public class Server {
     @Column(name = "ssh_host")
     private String sshHost;
 
-    @Column(name = "resource_level", nullable = false)
+    @Column(name = "resource_level")
     private String resourceLevel;
 
     @Enumerated(EnumType.STRING)

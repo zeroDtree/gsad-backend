@@ -9,7 +9,7 @@ import java.util.List;
 
 public record ServerReportRequest(
         @NotBlank String serverId,
-        @NotBlank String resourceLevel,
+        String resourceLevel,
         Instant collectedAt,
         @NotNull @Valid GpuSummaryBlock summary,
         @NotNull List<@Valid GpuRow> gpus

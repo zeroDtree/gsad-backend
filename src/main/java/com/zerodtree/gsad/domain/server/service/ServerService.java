@@ -11,6 +11,7 @@ import com.zerodtree.gsad.config.AgentProperties;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.time.Instant;
 import java.util.List;
@@ -55,7 +56,9 @@ public class ServerService {
                     return created;
                 });
 
-        server.setResourceLevel(request.resourceLevel());
+        if (StringUtils.hasText(request.resourceLevel())) {
+            server.setResourceLevel(request.resourceLevel().trim());
+        }
         server.setStatus(ServerStatus.ONLINE);
         server.setLastReportedAt(Instant.now());
         server.setMetricsJson(metricsJson);

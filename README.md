@@ -31,6 +31,7 @@ Create body: `serverId`, optional `sshPassword`.
 | POST | `/api/admin/users/bulk-enable` | JWT (admin) |
 | POST | `/api/admin/users/bulk-delete` | JWT (admin) |
 | POST | `/api/admin/users/import` | JWT (admin); multipart CSV |
+| POST | `/api/admin/servers/import` | JWT (admin); multipart CSV — required column `server_id`; optional `ssh_host`, `resource_level`; `agent_psk` ignored |
 
 ## Internal API (agent HMAC auth)
 
