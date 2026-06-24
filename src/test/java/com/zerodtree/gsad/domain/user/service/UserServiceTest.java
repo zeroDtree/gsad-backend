@@ -72,7 +72,7 @@ class UserServiceTest {
 
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
         when(userRepository.save(user)).thenReturn(user);
-        when(jwtTokenProvider.generateToken("student@example.com", List.of(), 1L)).thenReturn("new-token");
+        when(jwtTokenProvider.generateToken("student@example.com", List.of(), 1L, "hash")).thenReturn("new-token");
 
         var result = userService.changePassword(
                 1L, new ChangePasswordRequest("old-pass", "new-pass-123"));

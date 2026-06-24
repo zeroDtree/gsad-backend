@@ -46,8 +46,7 @@ public class UserController {
     public ResponseEntity<ApiResponse<SessionResponse>> login(
             HttpServletRequest request,
             @Valid @RequestBody LoginRequest body) {
-        String clientIp = LoginRateLimitService.resolveClientIp(request);
-        loginRateLimitService.assertAllowed(clientIp, body.email());
+        loginRateLimitService.assertAllowed(request, body.email());
 
         try {
             var result = userService.login(body);
@@ -57,7 +56,7 @@ public class UserController {
                     .body(ApiResponse.ok(new SessionResponse(result.email(), result.roles())));
         } catch (BusinessException ex) {
             if (ex.getErrorCode() == ErrorCode.UNAUTHORIZED) {
-                loginRateLimitService.recordAttempt(clientIp, body.email());
+                loginRateLimitService.recordAttempt(request, body.email());
             }
             throw ex;
         }

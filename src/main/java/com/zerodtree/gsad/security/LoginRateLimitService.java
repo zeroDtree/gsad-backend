@@ -23,8 +23,10 @@ public class LoginRateLimitService {
     private static final String EMAIL_PREFIX = "login:email:";
 
     private final RedisTemplate<String, String> redisTemplate;
+    private final ClientIpResolver clientIpResolver;
 
-    public void assertAllowed(String clientIp, String email) {
+    public void assertAllowed(HttpServletRequest request, String email) {
+        String clientIp = clientIpResolver.resolve(request);
         if (StringUtils.hasText(clientIp) && count(IP_PREFIX + clientIp) >= MAX_ATTEMPTS_PER_IP) {
             throw new BusinessException(ErrorCode.RATE_LIMITED, "Too many login attempts");
         }
@@ -33,7 +35,8 @@ public class LoginRateLimitService {
         }
     }
 
-    public void recordAttempt(String clientIp, String email) {
+    public void recordAttempt(HttpServletRequest request, String email) {
+        String clientIp = clientIpResolver.resolve(request);
         if (StringUtils.hasText(clientIp)) {
             increment(IP_PREFIX + clientIp);
         }
@@ -63,9 +66,5 @@ public class LoginRateLimitService {
 
     private static String normalizeEmail(String email) {
         return email.trim().toLowerCase(Locale.ROOT);
-    }
-
-    public static String resolveClientIp(HttpServletRequest request) {
-        return request.getRemoteAddr();
     }
 }

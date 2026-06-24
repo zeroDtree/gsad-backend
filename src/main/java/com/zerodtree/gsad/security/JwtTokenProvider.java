@@ -6,6 +6,7 @@ import io.jsonwebtoken.security.Keys;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
@@ -20,6 +21,8 @@ import java.util.Optional;
 @Slf4j
 public class JwtTokenProvider {
 
+    static final String PASSWORD_FINGERPRINT_CLAIM = "pf";
+
     private final JwtConfig jwtConfig;
 
     private SecretKey getSigningKey() {
@@ -27,7 +30,7 @@ public class JwtTokenProvider {
         return Keys.hmacShaKeyFor(keyBytes);
     }
 
-    public String generateToken(String email, List<String> roles, Long userId) {
+    public String generateToken(String email, List<String> roles, Long userId, String storedPasswordHash) {
         Instant now = Instant.now();
         Instant expiry = now.plus(jwtConfig.getExpirationDays(), ChronoUnit.DAYS);
 
@@ -35,6 +38,7 @@ public class JwtTokenProvider {
                 .subject(email)
                 .claim("roles", roles)
                 .claim("userId", userId)
+                .claim(PASSWORD_FINGERPRINT_CLAIM, PasswordFingerprint.fingerprint(storedPasswordHash))
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(expiry))
                 .signWith(getSigningKey())
@@ -86,7 +90,8 @@ public class JwtTokenProvider {
             return Optional.of(new JwtUserClaims(
                     claims.getSubject(),
                     extractUserId(claims),
-                    extractRoles(claims)));
+                    extractRoles(claims),
+                    extractPasswordFingerprint(claims)));
         } catch (JwtException | IllegalArgumentException ex) {
             log.debug("Invalid JWT token: {}", ex.getMessage());
             return Optional.empty();
@@ -97,6 +102,14 @@ public class JwtTokenProvider {
         Object userId = claims.get("userId");
         if (userId instanceof Number n) {
             return n.longValue();
+        }
+        return null;
+    }
+
+    private String extractPasswordFingerprint(Claims claims) {
+        Object passwordFingerprint = claims.get(PASSWORD_FINGERPRINT_CLAIM);
+        if (passwordFingerprint instanceof String s && StringUtils.hasText(s)) {
+            return s;
         }
         return null;
     }

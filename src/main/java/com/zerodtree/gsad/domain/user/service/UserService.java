@@ -34,7 +34,7 @@ public class UserService {
             throw new BusinessException(ErrorCode.FORBIDDEN, "Account is inactive");
         }
         var roles = AuthorityUtils.parseRoles(user.getRoles());
-        String token = jwtTokenProvider.generateToken(user.getEmail(), roles, user.getId());
+        String token = jwtTokenProvider.generateToken(user.getEmail(), roles, user.getId(), user.getPassword());
         return new LoginResult(token, user.getEmail(), roles);
     }
 
@@ -52,7 +52,7 @@ public class UserService {
         userPasswordService.applyPassword(user, request.newPassword());
         userRepository.save(user);
         var roles = AuthorityUtils.parseRoles(user.getRoles());
-        String token = jwtTokenProvider.generateToken(user.getEmail(), roles, user.getId());
+        String token = jwtTokenProvider.generateToken(user.getEmail(), roles, user.getId(), user.getPassword());
         return new LoginResult(token, user.getEmail(), roles);
     }
 }

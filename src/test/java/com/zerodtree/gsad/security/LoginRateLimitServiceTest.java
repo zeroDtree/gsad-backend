@@ -11,7 +11,6 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.mock.web.MockHttpServletRequest;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -28,30 +27,35 @@ class LoginRateLimitServiceTest {
     @Mock
     private ValueOperations<String, String> valueOperations;
 
+    @Mock
+    private ClientIpResolver clientIpResolver;
+
     private LoginRateLimitService loginRateLimitService;
 
     @BeforeEach
     void setUp() {
-        loginRateLimitService = new LoginRateLimitService(redisTemplate);
+        loginRateLimitService = new LoginRateLimitService(redisTemplate, clientIpResolver);
     }
 
     @Test
     void assertAllowed_underLimit() {
+        MockHttpServletRequest request = requestWithIp("127.0.0.1");
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(valueOperations.get("login:ip:127.0.0.1")).thenReturn("1");
         when(valueOperations.get("login:email:user@example.com")).thenReturn("2");
 
-        assertThatCode(() -> loginRateLimitService.assertAllowed("127.0.0.1", "user@example.com"))
+        assertThatCode(() -> loginRateLimitService.assertAllowed(request, "user@example.com"))
                 .doesNotThrowAnyException();
     }
 
     @Test
     void assertAllowed_emailOverLimit_throws() {
+        MockHttpServletRequest request = requestWithIp("127.0.0.1");
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(valueOperations.get("login:ip:127.0.0.1")).thenReturn(null);
         when(valueOperations.get("login:email:user@example.com")).thenReturn("5");
 
-        assertThatThrownBy(() -> loginRateLimitService.assertAllowed("127.0.0.1", "user@example.com"))
+        assertThatThrownBy(() -> loginRateLimitService.assertAllowed(request, "user@example.com"))
                 .isInstanceOf(BusinessException.class)
                 .extracting(ex -> ((BusinessException) ex).getErrorCode())
                 .isEqualTo(ErrorCode.RATE_LIMITED);
@@ -59,11 +63,12 @@ class LoginRateLimitServiceTest {
 
     @Test
     void recordAttempt_incrementsKeys() {
+        MockHttpServletRequest request = requestWithIp("127.0.0.1");
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(valueOperations.increment("login:ip:127.0.0.1")).thenReturn(1L);
         when(valueOperations.increment("login:email:user@example.com")).thenReturn(1L);
 
-        loginRateLimitService.recordAttempt("127.0.0.1", "user@example.com");
+        loginRateLimitService.recordAttempt(request, "user@example.com");
 
         verify(valueOperations).increment("login:ip:127.0.0.1");
         verify(valueOperations).increment("login:email:user@example.com");
@@ -71,12 +76,10 @@ class LoginRateLimitServiceTest {
         verify(redisTemplate).expire(eq("login:email:user@example.com"), any());
     }
 
-    @Test
-    void resolveClientIp_ignoresSpoofedForwardedHeader() {
+    private MockHttpServletRequest requestWithIp(String ip) {
         MockHttpServletRequest request = new MockHttpServletRequest();
-        request.setRemoteAddr("10.0.0.5");
-        request.addHeader("X-Forwarded-For", "1.2.3.4");
-
-        assertThat(LoginRateLimitService.resolveClientIp(request)).isEqualTo("10.0.0.5");
+        request.setRemoteAddr(ip);
+        when(clientIpResolver.resolve(request)).thenReturn(ip);
+        return request;
     }
 }

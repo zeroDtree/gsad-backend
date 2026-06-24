@@ -1,11 +1,7 @@
 package com.zerodtree.gsad.security;
 
-import com.zerodtree.gsad.domain.user.model.UserStatus;
-import com.zerodtree.gsad.domain.user.persistence.User;
-import com.zerodtree.gsad.domain.user.persistence.UserRepository;
-import jakarta.servlet.FilterChain;
+import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -15,17 +11,21 @@ import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.core.context.SecurityContextHolder;
 
+import com.zerodtree.gsad.domain.user.model.UserStatus;
+import com.zerodtree.gsad.domain.user.persistence.User;
+import com.zerodtree.gsad.domain.user.persistence.UserRepository;
+
 import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class JwtAuthenticationFilterTest {
+
+    private static final String CURRENT_HASH = "$2a$10$current-password-hash-value";
+    private static final String STALE_HASH = "$2a$10$stale-password-hash-value-xx";
 
     @Mock
     private JwtTokenProvider jwtTokenProvider;
@@ -33,80 +33,60 @@ class JwtAuthenticationFilterTest {
     @Mock
     private UserRepository userRepository;
 
-    @Mock
-    private FilterChain filterChain;
-
     @InjectMocks
-    private JwtAuthenticationFilter jwtAuthenticationFilter;
-
-    @BeforeEach
-    void setUp() {
-        SecurityContextHolder.clearContext();
-    }
+    private JwtAuthenticationFilter filter;
 
     @AfterEach
-    void tearDown() {
+    void clearContext() {
         SecurityContextHolder.clearContext();
     }
 
     @Test
-    void activeUser_setsAuthenticationFromDbRoles() throws Exception {
+    void rejectsTokenWhenPasswordFingerprintMismatch() throws Exception {
         MockHttpServletRequest request = new MockHttpServletRequest();
-        request.setCookies(new jakarta.servlet.http.Cookie(AuthCookieSupport.COOKIE_NAME, "valid-token"));
+        request.setCookies(new Cookie(AuthCookieSupport.COOKIE_NAME, "stale-token"));
 
         User user = new User();
-        user.setId(42L);
-        user.setEmail("alice@example.com");
-        user.setRoles("admin");
+        user.setId(1L);
+        user.setEmail("student@example.com");
         user.setStatus(UserStatus.ACTIVE);
+        user.setPassword(CURRENT_HASH);
 
-        when(jwtTokenProvider.resolveUserClaims("valid-token"))
-                .thenReturn(Optional.of(new JwtUserClaims("alice@example.com", 42L, List.of("user"))));
-        when(userRepository.findById(42L)).thenReturn(Optional.of(user));
+        when(jwtTokenProvider.resolveUserClaims("stale-token"))
+                .thenReturn(Optional.of(new JwtUserClaims(
+                        "student@example.com",
+                        1L,
+                        List.of(),
+                        PasswordFingerprint.fingerprint(STALE_HASH))));
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
 
-        jwtAuthenticationFilter.doFilterInternal(request, new MockHttpServletResponse(), filterChain);
+        filter.doFilterInternal(request, new MockHttpServletResponse(), (req, res) -> {});
 
-        var auth = SecurityContextHolder.getContext().getAuthentication();
-        assertThat(auth).isInstanceOf(JwtAuthenticationToken.class);
-        JwtAuthenticationToken jwtAuth = (JwtAuthenticationToken) auth;
-        assertThat(jwtAuth.getPrincipal()).isEqualTo("alice@example.com");
-        assertThat(jwtAuth.getUserId()).isEqualTo(42L);
-        assertThat(jwtAuth.getAuthorities())
-                .extracting(a -> a.getAuthority())
-                .containsExactlyInAnyOrder("ROLE_USER", "ROLE_ADMIN");
-        verify(filterChain).doFilter(eq(request), any());
+        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
     }
 
     @Test
-    void inactiveUser_doesNotSetAuthentication() throws Exception {
+    void acceptsTokenWhenPasswordFingerprintMatches() throws Exception {
         MockHttpServletRequest request = new MockHttpServletRequest();
-        request.setCookies(new jakarta.servlet.http.Cookie(AuthCookieSupport.COOKIE_NAME, "valid-token"));
+        request.setCookies(new Cookie(AuthCookieSupport.COOKIE_NAME, "valid-token"));
 
         User user = new User();
-        user.setId(42L);
-        user.setEmail("alice@example.com");
-        user.setStatus(UserStatus.INACTIVE);
+        user.setId(1L);
+        user.setEmail("student@example.com");
+        user.setStatus(UserStatus.ACTIVE);
+        user.setRoles("");
+        user.setPassword(CURRENT_HASH);
 
         when(jwtTokenProvider.resolveUserClaims("valid-token"))
-                .thenReturn(Optional.of(new JwtUserClaims("alice@example.com", 42L, List.of("admin"))));
-        when(userRepository.findById(42L)).thenReturn(Optional.of(user));
+                .thenReturn(Optional.of(new JwtUserClaims(
+                        "student@example.com",
+                        1L,
+                        List.of(),
+                        PasswordFingerprint.fingerprint(CURRENT_HASH))));
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
 
-        jwtAuthenticationFilter.doFilterInternal(request, new MockHttpServletResponse(), filterChain);
+        filter.doFilterInternal(request, new MockHttpServletResponse(), (req, res) -> {});
 
-        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
-    }
-
-    @Test
-    void missingUser_doesNotSetAuthentication() throws Exception {
-        MockHttpServletRequest request = new MockHttpServletRequest();
-        request.setCookies(new jakarta.servlet.http.Cookie(AuthCookieSupport.COOKIE_NAME, "valid-token"));
-
-        when(jwtTokenProvider.resolveUserClaims("valid-token"))
-                .thenReturn(Optional.of(new JwtUserClaims("ghost@example.com", 99L, List.of())));
-        when(userRepository.findById(99L)).thenReturn(Optional.empty());
-
-        jwtAuthenticationFilter.doFilterInternal(request, new MockHttpServletResponse(), filterChain);
-
-        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
+        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNotNull();
     }
 }

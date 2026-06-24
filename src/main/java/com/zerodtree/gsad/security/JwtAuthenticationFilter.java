@@ -33,12 +33,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         if (StringUtils.hasText(token)) {
             jwtTokenProvider.resolveUserClaims(token).flatMap(claims -> {
-                if (claims.userId() == null) {
+                if (claims.userId() == null || !StringUtils.hasText(claims.passwordFingerprint())) {
                     return java.util.Optional.<User>empty();
                 }
-                return userRepository.findById(claims.userId());
-            }).filter(user -> user.getStatus() == UserStatus.ACTIVE)
-                    .ifPresent(user -> {
+                return userRepository.findById(claims.userId())
+                        .filter(user -> user.getStatus() == UserStatus.ACTIVE)
+                        .filter(user -> PasswordFingerprint.matches(
+                                claims.passwordFingerprint(), user.getPassword()));
+            }).ifPresent(user -> {
                         List<SimpleGrantedAuthority> authorities =
                                 buildAuthorities(AuthorityUtils.parseRoles(user.getRoles()));
                         JwtAuthenticationToken authentication = new JwtAuthenticationToken(
