@@ -64,7 +64,7 @@ class SecuritySecretsValidatorTest {
 
         JwtConfig jwtConfig = mock(JwtConfig.class);
         AgentProperties agentProperties = mock(AgentProperties.class);
-        when(jwtConfig.getSecret()).thenReturn("change-me-in-production-at-least-32-chars");
+        when(jwtConfig.getSecret()).thenReturn("change-me-JWT_SECRET-at-least-32-chars");
 
         SecuritySecretsValidator validator = new SecuritySecretsValidator(
                 environment, jwtConfig, agentProperties);

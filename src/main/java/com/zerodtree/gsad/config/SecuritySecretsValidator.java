@@ -15,10 +15,6 @@ import java.util.Arrays;
 @RequiredArgsConstructor
 public class SecuritySecretsValidator {
 
-    private static final String DEFAULT_JWT_SECRET = "change-me-in-production-at-least-32-chars";
-    private static final String DEFAULT_AGENT_MASTER_SECRET = "change-me-in-production";
-    private static final String DEFAULT_ENCRYPTION_KEY = "change-me-32-chars-minimum";
-
     private final Environment environment;
     private final JwtConfig jwtConfig;
     private final AgentProperties agentProperties;
@@ -35,9 +31,9 @@ public class SecuritySecretsValidator {
             return;
         }
 
-        assertSecret("JWT_SECRET", jwtConfig.getSecret(), DEFAULT_JWT_SECRET);
-        assertSecret("AGENT_MASTER_SECRET", agentProperties.getMasterSecret(), DEFAULT_AGENT_MASTER_SECRET);
-        assertSecret("CREDENTIALS_ENCRYPTION_KEY", credentialsEncryptionKey, DEFAULT_ENCRYPTION_KEY);
+        assertSecret("JWT_SECRET", jwtConfig.getSecret());
+        assertSecret("AGENT_MASTER_SECRET", agentProperties.getMasterSecret());
+        assertSecret("CREDENTIALS_ENCRYPTION_KEY", credentialsEncryptionKey);
 
         if (isProdProfile()) {
             assertAgentBindIsPrivateOrLoopback(backendAgentBind);
@@ -61,7 +57,12 @@ public class SecuritySecretsValidator {
         }
     }
 
-    private void assertSecret(String envName, String value, String placeholder) {
+    private static String placeholderFor(String envName) {
+        return "change-me-" + envName + "-at-least-32-chars";
+    }
+
+    private void assertSecret(String envName, String value) {
+        String placeholder = placeholderFor(envName);
         if (!StringUtils.hasText(value)
                 || placeholder.equals(value)
                 || value.length() < 32) {
