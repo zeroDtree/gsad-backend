@@ -10,6 +10,7 @@ import org.springframework.util.StringUtils;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.Arrays;
+import java.util.List;
 
 @Component
 @RequiredArgsConstructor
@@ -25,6 +26,9 @@ public class SecuritySecretsValidator {
     @Value("${BACKEND_AGENT_BIND:127.0.0.1}")
     private String backendAgentBind;
 
+    @Value("${BACKEND_AGENT_VPN_CIDRS:}")
+    private String backendAgentVpnCidrs;
+
     @PostConstruct
     void validateSecrets() {
         if (isDevProfile()) {
@@ -36,24 +40,36 @@ public class SecuritySecretsValidator {
         assertSecret("CREDENTIALS_ENCRYPTION_KEY", credentialsEncryptionKey);
 
         if (isProdProfile()) {
-            assertAgentBindIsPrivateOrLoopback(backendAgentBind);
+            assertAgentBindAllowed(backendAgentBind);
         }
     }
 
-    private void assertAgentBindIsPrivateOrLoopback(String bind) {
+    private void assertAgentBindAllowed(String bind) {
         String host = bind.trim();
         try {
             InetAddress address = InetAddress.getByName(host);
             if (address.isAnyLocalAddress()) {
                 throw new IllegalStateException("Production forbids BACKEND_AGENT_BIND=0.0.0.0");
             }
-            if (!address.isLoopbackAddress() && !address.isSiteLocalAddress()) {
-                throw new IllegalStateException(
-                        "Production requires BACKEND_AGENT_BIND on loopback or RFC1918 address, got: "
-                                + host);
+            if (address.isLoopbackAddress() || address.isSiteLocalAddress()) {
+                return;
             }
+            List<CidrRange> vpnRanges = CidrRange.parseList(backendAgentVpnCidrs);
+            for (CidrRange range : vpnRanges) {
+                if (range.contains(address)) {
+                    return;
+                }
+            }
+            throw new IllegalStateException(
+                    "Production requires BACKEND_AGENT_BIND on loopback, RFC1918, or BACKEND_AGENT_VPN_CIDRS; got: "
+                            + host
+                            + (vpnRanges.isEmpty()
+                                    ? " (BACKEND_AGENT_VPN_CIDRS is empty)"
+                                    : " (configured: " + backendAgentVpnCidrs.trim() + ")"));
         } catch (UnknownHostException ex) {
             throw new IllegalStateException("Invalid BACKEND_AGENT_BIND: " + host, ex);
+        } catch (IllegalArgumentException ex) {
+            throw new IllegalStateException("Invalid BACKEND_AGENT_VPN_CIDRS: " + ex.getMessage(), ex);
         }
     }
 

@@ -68,6 +68,8 @@ Agent env `AGENT_SERVER_ID` must match `t_server.server_id`.
 | `REDIS_HOST`, `REDIS_PASSWORD` | yes |
 | `JWT_SECRET` (≥32 chars) | yes |
 | `AGENT_MASTER_SECRET` (≥32 chars) | yes |
+| `BACKEND_AGENT_BIND` | prod — loopback, RFC1918, or IP in `BACKEND_AGENT_VPN_CIDRS` |
+| `BACKEND_AGENT_VPN_CIDRS` | prod when bind is overlay VPN (comma-separated CIDRs, e.g. `100.67.0.0/16`) |
 
 ## Flyway
 
