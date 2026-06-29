@@ -14,7 +14,6 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -38,9 +37,6 @@ public class UserController {
     private final AuthCookieSupport authCookieSupport;
     private final LoginRateLimitService loginRateLimitService;
 
-    @Value("${spring.profiles.active:dev}")
-    private String activeProfile;
-
     @PostMapping("/login")
     @Operation(summary = "Login and obtain session cookie")
     public ResponseEntity<ApiResponse<SessionResponse>> login(
@@ -50,7 +46,7 @@ public class UserController {
 
         try {
             var result = userService.login(body);
-            boolean secure = activeProfile.contains("prod");
+            boolean secure = authCookieSupport.isSecureRequest(request);
             return ResponseEntity.ok()
                     .header(HttpHeaders.SET_COOKIE, authCookieSupport.createTokenCookie(result.token(), secure).toString())
                     .body(ApiResponse.ok(new SessionResponse(result.email(), result.roles())));
@@ -80,8 +76,8 @@ public class UserController {
 
     @PostMapping("/logout")
     @Operation(summary = "Clear session cookie")
-    public ResponseEntity<ApiResponse<Void>> logout() {
-        boolean secure = activeProfile.contains("prod");
+    public ResponseEntity<ApiResponse<Void>> logout(HttpServletRequest request) {
+        boolean secure = authCookieSupport.isSecureRequest(request);
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, authCookieSupport.clearTokenCookie(secure).toString())
                 .body(ApiResponse.ok(null));
@@ -91,10 +87,11 @@ public class UserController {
     @Operation(summary = "Change password for the current user")
     @SecurityRequirement(name = "sessionCookie")
     public ResponseEntity<ApiResponse<SessionResponse>> changePassword(
+            HttpServletRequest request,
             @CurrentUserId Long userId,
             @Valid @RequestBody ChangePasswordRequest body) {
         var result = userService.changePassword(userId, body);
-        boolean secure = activeProfile.contains("prod");
+        boolean secure = authCookieSupport.isSecureRequest(request);
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, authCookieSupport.createTokenCookie(result.token(), secure).toString())
                 .body(ApiResponse.ok(new SessionResponse(result.email(), result.roles())));
