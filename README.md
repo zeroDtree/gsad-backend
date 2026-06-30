@@ -17,7 +17,7 @@ Spring Boot 4 / Java 21 · PostgreSQL 16 · Redis (idempotency) · Flyway · JWT
 | DELETE | `/api/applications/{id}` | JWT — cancel (`APPROVED`) or revoke access (`ACTIVE`) |
 | GET | `/api/applications/mine` | JWT |
 
-Create body: `serverId`, optional `sshPassword`, optional `installMiniconda` (default false — when true, agent runs Miniconda installer; script is always copied).
+Create body: `serverId`, optional `sshPassword`.
 
 ## Admin API
 
@@ -58,7 +58,7 @@ Agent env `AGENT_SERVER_ID` must match `t_server.server_id`.
 ## Schema (key tables)
 
 - **`t_server`** — `server_id`, `ssh_host`, `resource_level`, `status`, `metrics_json`, `last_reported_at`
-- **`t_application`** — `server_id`, `audit_status`, `server_ip`, `ssh_username`, `install_miniconda`, credentials
+- **`t_application`** — `server_id`, `audit_status`, `server_ip`, `ssh_username`, credentials
 
 ## Config
 

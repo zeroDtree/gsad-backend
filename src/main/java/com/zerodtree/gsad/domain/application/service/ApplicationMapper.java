@@ -19,7 +19,6 @@ public final class ApplicationMapper {
                 application.getSshUsername(),
                 isCredentialsReady(application) ? application.getInitialPassword() : null,
                 isCredentialsReady(application),
-                application.isInstallMiniconda(),
                 application.getCreatedAt(),
                 application.getUpdatedAt());
     }

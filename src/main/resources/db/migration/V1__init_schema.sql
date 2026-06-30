@@ -43,7 +43,6 @@ CREATE TABLE IF NOT EXISTS t_application (
     ssh_username         VARCHAR(255),
     initial_password     VARCHAR(255),
     ssh_password_plain   VARCHAR(255),
-    install_miniconda    BOOLEAN         NOT NULL,
     created_at           TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
     updated_at           TIMESTAMPTZ     NOT NULL DEFAULT NOW()
 );
