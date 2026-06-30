@@ -62,6 +62,9 @@ public class Application {
     @Column(name = "ssh_password_plain")
     private String sshPasswordPlain;
 
+    @Column(name = "install_miniconda", nullable = false)
+    private boolean installMiniconda;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 

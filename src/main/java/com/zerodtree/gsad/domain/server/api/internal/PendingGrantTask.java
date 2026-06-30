@@ -6,5 +6,6 @@ public record PendingGrantTask(
         String serverId,
         String resourceLevel,
         String linuxUsername,
-        String password
+        String password,
+        boolean installMiniconda
 ) {}

@@ -74,7 +74,7 @@ class ApplicationServiceTest {
         when(applicationPasswordGenerator.resolvePassword(null)).thenReturn("generated-pass");
         when(applicationRepository.save(any(Application.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        ApplicationVO vo = applicationService.create(1L, null, new CreateApplicationRequest("gpu-001", null));
+        ApplicationVO vo = applicationService.create(1L, null, new CreateApplicationRequest("gpu-001", null, null));
 
         ArgumentCaptor<Application> captor = ArgumentCaptor.forClass(Application.class);
         verify(applicationRepository).save(captor.capture());
@@ -82,7 +82,36 @@ class ApplicationServiceTest {
 
         assertThat(saved.getAuditStatus()).isEqualTo(AuditStatus.APPROVED);
         assertThat(saved.getServerId()).isEqualTo("gpu-001");
+        assertThat(saved.isInstallMiniconda()).isFalse();
         assertThat(vo.auditStatus()).isEqualTo("APPROVED");
+        assertThat(vo.installMiniconda()).isFalse();
+    }
+
+    @Test
+    void create_persistsInstallMinicondaWhenRequested() {
+        User user = new User();
+        user.setId(1L);
+        user.setEmail("dev@example.com");
+        user.setLinuxUsername("dev");
+
+        Server server = new Server();
+        server.setServerId("gpu-001");
+        server.setResourceLevel("H100");
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(serverService.requireByServerId("gpu-001")).thenReturn(server);
+        when(linuxUsernameResolver.resolve(user)).thenReturn("dev");
+        when(applicationPasswordGenerator.resolvePassword(null)).thenReturn("generated-pass");
+        when(applicationRepository.save(any(Application.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        ApplicationVO vo = applicationService.create(
+                1L, null, new CreateApplicationRequest("gpu-001", null, true));
+
+        ArgumentCaptor<Application> captor = ArgumentCaptor.forClass(Application.class);
+        verify(applicationRepository).save(captor.capture());
+
+        assertThat(captor.getValue().isInstallMiniconda()).isTrue();
+        assertThat(vo.installMiniconda()).isTrue();
     }
 
     @Test
@@ -111,7 +140,7 @@ class ApplicationServiceTest {
         when(applicationPasswordGenerator.resolvePassword(null)).thenReturn("generated-pass");
         when(applicationRepository.save(any(Application.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        applicationService.create(1L, sharedKey, new CreateApplicationRequest("gpu-001", null));
+        applicationService.create(1L, sharedKey, new CreateApplicationRequest("gpu-001", null, null));
 
         verify(applicationRepository, never()).findById("app-other");
         verify(applicationRepository).findByIdempotencyKeyAndUserId(sharedKey, 1L);
@@ -127,7 +156,7 @@ class ApplicationServiceTest {
         when(valueOperations.get("idempotency:1:" + key)).thenReturn("app-existing");
         when(applicationRepository.findByIdAndUserId("app-existing", 1L)).thenReturn(Optional.of(existing));
 
-        ApplicationVO vo = applicationService.create(1L, key, new CreateApplicationRequest("gpu-001", null));
+        ApplicationVO vo = applicationService.create(1L, key, new CreateApplicationRequest("gpu-001", null, null));
 
         assertThat(vo.id()).isEqualTo("app-existing");
         verify(applicationRepository, never()).save(any());
@@ -201,6 +230,7 @@ class ApplicationServiceTest {
         application.setResourceLevel("H100");
         application.setAuditStatus(status);
         application.setSshUsername("dev");
+        application.setInstallMiniconda(false);
         return application;
     }
 }

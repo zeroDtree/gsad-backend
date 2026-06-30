@@ -35,7 +35,8 @@ public class AgentProvisionService {
                         app.getServerId(),
                         app.getResourceLevel(),
                         app.getSshUsername(),
-                        app.getSshPasswordPlain()))
+                        app.getSshPasswordPlain(),
+                        app.isInstallMiniconda()))
                 .toList();
     }
 

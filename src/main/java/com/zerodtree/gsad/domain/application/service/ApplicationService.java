@@ -61,6 +61,7 @@ public class ApplicationService {
         application.setAuditStatus(AuditStatus.APPROVED);
         application.setSshUsername(linuxUsernameResolver.resolve(user));
         application.setSshPasswordPlain(applicationPasswordGenerator.resolvePassword(request.sshPassword()));
+        application.setInstallMiniconda(Boolean.TRUE.equals(request.installMiniconda()));
         if (StringUtils.hasText(idempotencyKey)) {
             application.setIdempotencyKey(idempotencyKey);
         }
