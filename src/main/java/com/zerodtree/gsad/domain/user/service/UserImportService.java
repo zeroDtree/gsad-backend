@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.Set;
 
 @Service
@@ -35,6 +36,7 @@ public class UserImportService {
 
     private final UserRepository userRepository;
     private final UserPasswordService userPasswordService;
+    private final UserProfileService userProfileService;
     private final LinuxUsernameResolver linuxUsernameResolver;
 
     @Transactional
@@ -45,7 +47,7 @@ public class UserImportService {
 
         List<UserImportError> errors = new ArrayList<>();
         int created = 0;
-        int skipped = 0;
+        int updated = 0;
 
         Set<String> seenEmails = new HashSet<>();
         Set<String> seenUsernames = new HashSet<>();
@@ -85,10 +87,28 @@ public class UserImportService {
                     continue;
                 }
 
-                if (userRepository.existsByEmail(row.email())) {
-                    skipped++;
+                Optional<User> existing = userRepository.findByEmail(row.email());
+                if (existing.isPresent()) {
+                    User user = existing.get();
+                    if (isAdmin(user)) {
+                        errors.add(new UserImportError(rowNumber, "admin account cannot be modified via import"));
+                        continue;
+                    }
+                    try {
+                        userProfileService.applyImportProfile(
+                                user,
+                                row.linuxUsername(),
+                                row.displayName(),
+                                row.studentId(),
+                                row.cohort());
+                        userRepository.save(user);
+                        updated++;
+                    } catch (BusinessException ex) {
+                        errors.add(new UserImportError(rowNumber, ex.getMessage()));
+                    }
                     continue;
                 }
+
                 if (userRepository.existsByLinuxUsername(row.linuxUsername())) {
                     errors.add(new UserImportError(rowNumber, "linux_username already exists"));
                     continue;
@@ -115,7 +135,12 @@ public class UserImportService {
             throw new BusinessException(ErrorCode.INVALID_ARGUMENT, "Failed to read CSV file");
         }
 
-        return new UserImportResponse(created, skipped, errors);
+        return new UserImportResponse(created, updated, errors);
+    }
+
+    private static boolean isAdmin(User user) {
+        return AuthorityUtils.parseRoles(user.getRoles()).stream()
+                .anyMatch(role -> "admin".equalsIgnoreCase(role));
     }
 
     private ColumnIndex parseHeader(String headerLine) {

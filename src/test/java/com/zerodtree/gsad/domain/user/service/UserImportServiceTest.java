@@ -2,6 +2,7 @@ package com.zerodtree.gsad.domain.user.service;
 
 import com.zerodtree.gsad.domain.application.service.LinuxUsernameResolver;
 import com.zerodtree.gsad.domain.user.api.UserImportResponse;
+import com.zerodtree.gsad.domain.user.model.UserStatus;
 import com.zerodtree.gsad.domain.user.persistence.User;
 import com.zerodtree.gsad.domain.user.persistence.UserRepository;
 import org.junit.jupiter.api.Test;
@@ -12,8 +13,12 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockMultipartFile;
 
+import java.util.Optional;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -25,6 +30,9 @@ class UserImportServiceTest {
 
     @Mock
     private UserPasswordService userPasswordService;
+
+    @Mock
+    private UserProfileService userProfileService;
 
     @Mock
     private LinuxUsernameResolver linuxUsernameResolver;
@@ -40,7 +48,7 @@ class UserImportServiceTest {
                 """;
         MockMultipartFile file = new MockMultipartFile("file", "users.csv", "text/csv", csv.getBytes());
 
-        when(userRepository.existsByEmail("alice@example.com")).thenReturn(false);
+        when(userRepository.findByEmail("alice@example.com")).thenReturn(Optional.empty());
         when(userRepository.existsByLinuxUsername("alice")).thenReturn(false);
         when(userRepository.existsByStudentId("2024001")).thenReturn(false);
         when(linuxUsernameResolver.validateAndReturn("alice")).thenReturn("alice");
@@ -49,7 +57,7 @@ class UserImportServiceTest {
         UserImportResponse response = userImportService.importCsv(file);
 
         assertThat(response.created()).isEqualTo(1);
-        assertThat(response.skipped()).isZero();
+        assertThat(response.updated()).isZero();
         assertThat(response.errors()).isEmpty();
 
         ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
@@ -94,19 +102,56 @@ class UserImportServiceTest {
     }
 
     @Test
-    void importCsv_skipsExistingEmail() {
+    void importCsv_upsertsExistingEmailWithoutChangingPassword() {
         String csv = """
-                email,linux_username,initial_password
-                existing@example.com,existing,ValidPass1!
+                email,linux_username,display_name,student_id,cohort,initial_password
+                existing@example.com,newname,Existing User,2024002,2025,ValidPass1!
                 """;
         MockMultipartFile file = new MockMultipartFile("file", "users.csv", "text/csv", csv.getBytes());
 
-        when(userRepository.existsByEmail("existing@example.com")).thenReturn(true);
-        when(linuxUsernameResolver.validateAndReturn("existing")).thenReturn("existing");
+        User existing = new User();
+        existing.setId(2L);
+        existing.setEmail("existing@example.com");
+        existing.setLinuxUsername("oldname");
+        existing.setPassword("hash");
+        existing.setStatus(UserStatus.ACTIVE);
+
+        when(userRepository.findByEmail("existing@example.com")).thenReturn(Optional.of(existing));
+        when(linuxUsernameResolver.validateAndReturn("newname")).thenReturn("newname");
+        when(userRepository.save(existing)).thenReturn(existing);
 
         UserImportResponse response = userImportService.importCsv(file);
 
         assertThat(response.created()).isZero();
-        assertThat(response.skipped()).isEqualTo(1);
+        assertThat(response.updated()).isEqualTo(1);
+        assertThat(response.errors()).isEmpty();
+        verify(userProfileService).applyImportProfile(
+                existing, "newname", "Existing User", "2024002", "2025");
+        verify(userPasswordService, never()).applyPassword(any(), any());
+    }
+
+    @Test
+    void importCsv_rejectsExistingAdminEmail() {
+        String csv = """
+                email,linux_username,initial_password
+                admin@example.com,adminuser,ValidPass1!
+                """;
+        MockMultipartFile file = new MockMultipartFile("file", "users.csv", "text/csv", csv.getBytes());
+
+        User admin = new User();
+        admin.setId(1L);
+        admin.setEmail("admin@example.com");
+        admin.setLinuxUsername("adminuser");
+        admin.setRoles("admin");
+
+        when(userRepository.findByEmail("admin@example.com")).thenReturn(Optional.of(admin));
+        when(linuxUsernameResolver.validateAndReturn("adminuser")).thenReturn("adminuser");
+
+        UserImportResponse response = userImportService.importCsv(file);
+
+        assertThat(response.updated()).isZero();
+        assertThat(response.errors()).hasSize(1);
+        assertThat(response.errors().getFirst().reason()).isEqualTo("admin account cannot be modified via import");
+        verify(userRepository, never()).save(any());
     }
 }

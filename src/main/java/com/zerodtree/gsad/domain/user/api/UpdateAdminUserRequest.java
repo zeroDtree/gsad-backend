@@ -7,5 +7,6 @@ public record UpdateAdminUserRequest(
         String cohort,
         String notes,
         String label,
+        String linuxUsername,
         UserStatus status
 ) {}

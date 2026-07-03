@@ -46,6 +46,7 @@ public class AdminUserService {
     private final ApplicationRepository applicationRepository;
     private final ApplicationService applicationService;
     private final UserPasswordService userPasswordService;
+    private final UserProfileService userProfileService;
 
     @Transactional(readOnly = true)
     public PageResult<AdminUserVO> list(String cohort, String status, String role, int page, int pageSize) {
@@ -68,11 +69,10 @@ public class AdminUserService {
     @Transactional
     public AdminUserVO update(Long id, UpdateAdminUserRequest request) {
         User user = requireUser(id);
-        if (request.displayName() != null) {
-            user.setDisplayName(blankToNull(request.displayName()));
-        }
-        if (request.cohort() != null) {
-            user.setCohort(blankToNull(request.cohort()));
+        if (request.linuxUsername() != null || request.displayName() != null || request.cohort() != null) {
+            assertAdminMutable(user);
+            userProfileService.applyPatchProfile(
+                    user, request.linuxUsername(), request.displayName(), request.cohort());
         }
         if (request.notes() != null) {
             user.setNotes(blankToNull(request.notes()));
@@ -133,7 +133,7 @@ public class AdminUserService {
                 continue;
             }
             try {
-                update(user.getId(), new UpdateAdminUserRequest(null, null, null, null, UserStatus.INACTIVE));
+                update(user.getId(), new UpdateAdminUserRequest(null, null, null, null, null, UserStatus.INACTIVE));
                 disabled++;
             } catch (BusinessException ex) {
                 errors.add(toBulkError(user, ex.getMessage()));
@@ -156,7 +156,7 @@ public class AdminUserService {
                 continue;
             }
             try {
-                update(user.getId(), new UpdateAdminUserRequest(null, null, null, null, UserStatus.ACTIVE));
+                update(user.getId(), new UpdateAdminUserRequest(null, null, null, null, null, UserStatus.ACTIVE));
                 enabled++;
             } catch (BusinessException ex) {
                 errors.add(toBulkError(user, ex.getMessage()));

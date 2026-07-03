@@ -24,13 +24,13 @@ Create body: `serverId`, optional `sshPassword`.
 | Method | Path | Auth |
 |--------|------|------|
 | GET | `/api/admin/users` | JWT (admin) |
-| PATCH | `/api/admin/users/{id}` | JWT (admin) |
+| PATCH | `/api/admin/users/{id}` | JWT (admin); body may include `linuxUsername` |
 | POST | `/api/admin/users/{id}/reset-password` | JWT (admin) |
 | DELETE | `/api/admin/users/{id}` | JWT (admin); query `revokeSsh` |
 | POST | `/api/admin/users/bulk-disable` | JWT (admin) |
 | POST | `/api/admin/users/bulk-enable` | JWT (admin) |
 | POST | `/api/admin/users/bulk-delete` | JWT (admin) |
-| POST | `/api/admin/users/import` | JWT (admin); multipart CSV |
+| POST | `/api/admin/users/import` | JWT (admin); multipart CSV; upserts existing emails (profile fields only; password unchanged); response `created` / `updated` / `errors` |
 | POST | `/api/admin/servers/import` | JWT (admin); multipart CSV — required column `server_id`; optional `ssh_host`, `resource_level`; `agent_psk` ignored |
 
 ## Internal API (agent HMAC auth)

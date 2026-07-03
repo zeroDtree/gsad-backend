@@ -4,6 +4,6 @@ import java.util.List;
 
 public record UserImportResponse(
         int created,
-        int skipped,
+        int updated,
         List<UserImportError> errors
 ) {}

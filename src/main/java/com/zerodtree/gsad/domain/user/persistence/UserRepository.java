@@ -19,6 +19,10 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     boolean existsByStudentId(String studentId);
 
+    boolean existsByLinuxUsernameAndIdNot(String linuxUsername, Long id);
+
+    boolean existsByStudentIdAndIdNot(String studentId, Long id);
+
     @Query("""
             SELECT u FROM User u
             WHERE (:status IS NULL OR u.status = :status)

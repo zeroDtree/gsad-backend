@@ -54,6 +54,9 @@ class AdminUserServiceTest {
     @Mock
     private UserPasswordService userPasswordService;
 
+    @Mock
+    private UserProfileService userProfileService;
+
     @InjectMocks
     private AdminUserService adminUserService;
 
@@ -95,7 +98,8 @@ class AdminUserServiceTest {
         when(applicationRepository.countByUserIdAndAuditStatusIn(eq(2L), any()))
                 .thenReturn(0L);
 
-        AdminUserVO vo = adminUserService.update(2L, new UpdateAdminUserRequest(null, null, null, null, UserStatus.INACTIVE));
+        AdminUserVO vo = adminUserService.update(
+                2L, new UpdateAdminUserRequest(null, null, null, null, null, UserStatus.INACTIVE));
 
         assertThat(user.getStatus()).isEqualTo(UserStatus.INACTIVE);
         assertThat(vo.status()).isEqualTo("INACTIVE");
@@ -108,7 +112,42 @@ class AdminUserServiceTest {
         when(userRepository.findById(1L)).thenReturn(Optional.of(admin));
 
         assertThatThrownBy(() -> adminUserService.update(
-                        1L, new UpdateAdminUserRequest(null, null, null, null, UserStatus.INACTIVE)))
+                        1L, new UpdateAdminUserRequest(null, null, null, null, null, UserStatus.INACTIVE)))
+                .isInstanceOf(BusinessException.class)
+                .extracting(ex -> ((BusinessException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.FORBIDDEN);
+    }
+
+    @Test
+    void update_linuxUsername_delegatesToProfileService() {
+        User user = sampleUser(2L, "student@example.com");
+        user.setLinuxUsername("oldname");
+        when(userRepository.findById(2L)).thenReturn(Optional.of(user));
+        when(userRepository.save(user)).thenReturn(user);
+        when(applicationRepository.countByUserIdAndAuditStatusIn(eq(2L), any())).thenReturn(0L);
+        org.mockito.Mockito.doAnswer(invocation -> {
+                    User target = invocation.getArgument(0);
+                    target.setLinuxUsername(invocation.getArgument(1));
+                    return null;
+                })
+                .when(userProfileService)
+                .applyPatchProfile(user, "newname", null, null);
+
+        AdminUserVO vo = adminUserService.update(
+                2L, new UpdateAdminUserRequest(null, null, null, null, "newname", null));
+
+        verify(userProfileService).applyPatchProfile(user, "newname", null, null);
+        assertThat(vo.linuxUsername()).isEqualTo("newname");
+    }
+
+    @Test
+    void update_linuxUsername_admin_forbidden() {
+        User admin = sampleUser(1L, "admin@gsad.local");
+        admin.setRoles("admin");
+        when(userRepository.findById(1L)).thenReturn(Optional.of(admin));
+
+        assertThatThrownBy(() -> adminUserService.update(
+                        1L, new UpdateAdminUserRequest(null, null, null, null, "newadmin", null)))
                 .isInstanceOf(BusinessException.class)
                 .extracting(ex -> ((BusinessException) ex).getErrorCode())
                 .isEqualTo(ErrorCode.FORBIDDEN);
