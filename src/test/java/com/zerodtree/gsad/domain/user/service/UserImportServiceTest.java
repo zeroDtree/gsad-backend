@@ -102,7 +102,7 @@ class UserImportServiceTest {
     }
 
     @Test
-    void importCsv_upsertsExistingEmailWithoutChangingPassword() {
+    void importCsv_upsertsExistingEmailAndOverwritesPassword() {
         String csv = """
                 email,linux_username,display_name,student_id,cohort,initial_password
                 existing@example.com,newname,Existing User,2024002,2025,ValidPass1!
@@ -127,7 +127,7 @@ class UserImportServiceTest {
         assertThat(response.errors()).isEmpty();
         verify(userProfileService).applyImportProfile(
                 existing, "newname", "Existing User", "2024002", "2025");
-        verify(userPasswordService, never()).applyPassword(any(), any());
+        verify(userPasswordService).applyPassword(existing, "ValidPass1!");
     }
 
     @Test

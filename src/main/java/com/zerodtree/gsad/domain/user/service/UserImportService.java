@@ -101,6 +101,7 @@ public class UserImportService {
                                 row.displayName(),
                                 row.studentId(),
                                 row.cohort());
+                        userPasswordService.applyPassword(user, row.initialPassword());
                         userRepository.save(user);
                         updated++;
                     } catch (BusinessException ex) {

@@ -55,11 +55,9 @@ class SecuritySecretsValidatorTest {
         when(environment.getActiveProfiles()).thenReturn(new String[] {"dev"});
 
         JwtConfig jwtConfig = mock(JwtConfig.class);
-        AgentProperties agentProperties = mock(AgentProperties.class);
         when(jwtConfig.getSecret()).thenReturn("change-me-JWT_SECRET-at-least-32-chars");
 
-        SecuritySecretsValidator validator = new SecuritySecretsValidator(
-                environment, jwtConfig, agentProperties);
+        SecuritySecretsValidator validator = new SecuritySecretsValidator(environment, jwtConfig);
         ReflectionTestUtils.setField(validator, "backendAgentBind", "0.0.0.0");
 
         assertThatCode(validator::validateSecrets).doesNotThrowAnyException();
@@ -78,12 +76,9 @@ class SecuritySecretsValidatorTest {
         when(environment.getActiveProfiles()).thenReturn(new String[] {"prod"});
 
         JwtConfig jwtConfig = mock(JwtConfig.class);
-        AgentProperties agentProperties = mock(AgentProperties.class);
         when(jwtConfig.getSecret()).thenReturn("prod-jwt-secret-with-enough-length-32");
-        when(agentProperties.getMasterSecret()).thenReturn("prod-agent-master-secret-32-chars-min");
 
-        SecuritySecretsValidator validator = new SecuritySecretsValidator(
-                environment, jwtConfig, agentProperties);
+        SecuritySecretsValidator validator = new SecuritySecretsValidator(environment, jwtConfig);
         ReflectionTestUtils.setField(validator, "credentialsEncryptionKey", "prod-credentials-key-32-chars-min");
         ReflectionTestUtils.setField(validator, "backendAgentBind", bind);
         ReflectionTestUtils.setField(validator, "backendAgentVpnCidrs", vpnCidrs != null ? vpnCidrs : "");

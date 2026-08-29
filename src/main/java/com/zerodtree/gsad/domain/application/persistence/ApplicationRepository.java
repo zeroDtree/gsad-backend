@@ -4,6 +4,9 @@ import com.zerodtree.gsad.domain.application.model.AuditStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.Collection;
 import java.util.List;
@@ -27,4 +30,8 @@ public interface ApplicationRepository extends JpaRepository<Application, String
     long countByUserIdAndAuditStatusIn(Long userId, Collection<AuditStatus> statuses);
 
     void deleteByUserId(Long userId);
+
+    @Modifying
+    @Query("UPDATE Application a SET a.serverId = :newServerId WHERE a.serverId = :oldServerId")
+    int updateServerId(@Param("oldServerId") String oldServerId, @Param("newServerId") String newServerId);
 }

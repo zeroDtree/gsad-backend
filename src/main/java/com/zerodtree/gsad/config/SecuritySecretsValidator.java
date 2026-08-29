@@ -18,7 +18,6 @@ public class SecuritySecretsValidator {
 
     private final Environment environment;
     private final JwtConfig jwtConfig;
-    private final AgentProperties agentProperties;
 
     @Value("${credentials.encryption-key:}")
     private String credentialsEncryptionKey;
@@ -36,7 +35,6 @@ public class SecuritySecretsValidator {
         }
 
         assertSecret("JWT_SECRET", jwtConfig.getSecret());
-        assertSecret("AGENT_MASTER_SECRET", agentProperties.getMasterSecret());
         assertSecret("CREDENTIALS_ENCRYPTION_KEY", credentialsEncryptionKey);
 
         if (isProdProfile()) {

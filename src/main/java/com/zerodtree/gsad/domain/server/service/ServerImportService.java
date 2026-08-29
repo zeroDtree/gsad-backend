@@ -18,18 +18,14 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
-import java.util.Set;
-import java.util.regex.Pattern;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
 public class ServerImportService {
-
-    private static final Pattern SERVER_ID_PATTERN =
-            Pattern.compile("^[a-zA-Z0-9][a-zA-Z0-9._-]{0,254}$");
 
     private final ServerRepository serverRepository;
 
@@ -40,9 +36,7 @@ public class ServerImportService {
         }
 
         List<ServerImportError> errors = new ArrayList<>();
-        int created = 0;
-        int skipped = 0;
-        Set<String> seenServerIds = new HashSet<>();
+        Map<String, ImportRow> lastWins = new LinkedHashMap<>();
 
         try (BufferedReader reader = new BufferedReader(
                 new InputStreamReader(file.getInputStream(), StandardCharsets.UTF_8))) {
@@ -64,31 +58,33 @@ public class ServerImportService {
                 if (row == null) {
                     continue;
                 }
-
-                if (!seenServerIds.add(row.serverId())) {
-                    errors.add(new ServerImportError(rowNumber, "duplicate server_id in CSV"));
-                    continue;
-                }
-
-                if (serverRepository.existsByServerId(row.serverId())) {
-                    skipped++;
-                    continue;
-                }
-
-                Server server = new Server();
-                server.setServerId(row.serverId());
-                server.setSshHost(blankToNull(row.sshHost()));
-                server.setResourceLevel(blankToNull(row.resourceLevel()));
-                server.setStatus(ServerStatus.OFFLINE);
-                server.setMetricsJson("{}");
-                serverRepository.save(server);
-                created++;
+                lastWins.put(row.serverId(), row);
             }
         } catch (IOException ex) {
             throw new BusinessException(ErrorCode.INVALID_ARGUMENT, "Failed to read CSV file");
         }
 
-        return new ServerImportResponse(created, skipped, errors);
+        int created = 0;
+        int updated = 0;
+        for (ImportRow row : lastWins.values()) {
+            Server existing = serverRepository.findByServerId(row.serverId()).orElse(null);
+            if (existing != null) {
+                existing.setAgentPsk(row.agentPsk());
+                serverRepository.save(existing);
+                updated++;
+                continue;
+            }
+
+            Server server = new Server();
+            server.setServerId(row.serverId());
+            server.setAgentPsk(row.agentPsk());
+            server.setStatus(ServerStatus.OFFLINE);
+            server.setMetricsJson("{}");
+            serverRepository.save(server);
+            created++;
+        }
+
+        return new ServerImportResponse(created, updated, errors);
     }
 
     private ColumnIndex parseHeader(String headerLine) {
@@ -98,8 +94,7 @@ public class ServerImportService {
             String name = headers[i].trim().toLowerCase(Locale.ROOT);
             switch (name) {
                 case "server_id" -> index.serverId = i;
-                case "ssh_host" -> index.sshHost = i;
-                case "resource_level" -> index.resourceLevel = i;
+                case "agent_psk" -> index.agentPsk = i;
                 default -> {
                 }
             }
@@ -107,30 +102,29 @@ public class ServerImportService {
         if (index.serverId < 0) {
             throw new BusinessException(ErrorCode.INVALID_ARGUMENT, "Missing CSV column: server_id");
         }
+        if (index.agentPsk < 0) {
+            throw new BusinessException(ErrorCode.INVALID_ARGUMENT, "Missing CSV column: agent_psk");
+        }
         return index;
     }
 
     private ImportRow parseRow(
             String[] fields, ColumnIndex columns, int rowNumber, List<ServerImportError> errors) {
-        String serverId = readField(fields, columns.serverId).trim();
-        if (!StringUtils.hasText(serverId)) {
-            errors.add(new ServerImportError(rowNumber, "server_id is required"));
+        String serverId = ServerConstraints.normalize(readField(fields, columns.serverId));
+        String serverIdError = ServerConstraints.serverIdError(serverId);
+        if (serverIdError != null) {
+            errors.add(new ServerImportError(rowNumber, serverIdError));
             return null;
         }
-        if (serverId.length() > 255) {
-            errors.add(new ServerImportError(rowNumber, "server_id must be at most 255 characters"));
+
+        String agentPsk = ServerConstraints.normalize(readField(fields, columns.agentPsk));
+        String pskError = ServerConstraints.agentPskError(agentPsk);
+        if (pskError != null) {
+            errors.add(new ServerImportError(rowNumber, pskError));
             return null;
         }
-        if (!SERVER_ID_PATTERN.matcher(serverId).matches()) {
-            errors.add(new ServerImportError(
-                    rowNumber,
-                    "server_id must start with alphanumeric and contain only letters, digits, ., _, -"));
-            return null;
-        }
-        return new ImportRow(
-                serverId,
-                readField(fields, columns.sshHost),
-                readField(fields, columns.resourceLevel));
+
+        return new ImportRow(serverId, agentPsk);
     }
 
     private static String readField(String[] fields, int index) {
@@ -140,15 +134,10 @@ public class ServerImportService {
         return fields[index].trim();
     }
 
-    private static String blankToNull(String value) {
-        return StringUtils.hasText(value) ? value.trim() : null;
-    }
-
-    private record ImportRow(String serverId, String sshHost, String resourceLevel) {}
+    private record ImportRow(String serverId, String agentPsk) {}
 
     private static final class ColumnIndex {
         private int serverId = -1;
-        private int sshHost = -1;
-        private int resourceLevel = -1;
+        private int agentPsk = -1;
     }
 }

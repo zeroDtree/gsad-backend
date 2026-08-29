@@ -1,5 +1,7 @@
 package com.zerodtree.gsad.domain.server.persistence;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
@@ -11,5 +13,9 @@ public interface ServerRepository extends JpaRepository<Server, Long> {
 
     boolean existsByServerId(String serverId);
 
+    boolean existsByServerIdAndIdNot(String serverId, Long id);
+
     List<Server> findAllByOrderByServerIdAsc();
+
+    Page<Server> findAllByOrderByServerIdAsc(Pageable pageable);
 }

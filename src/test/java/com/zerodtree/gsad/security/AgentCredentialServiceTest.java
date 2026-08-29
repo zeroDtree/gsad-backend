@@ -1,49 +1,60 @@
 package com.zerodtree.gsad.security;
 
-import com.zerodtree.gsad.config.AgentProperties;
-import org.junit.jupiter.api.BeforeEach;
+import com.zerodtree.gsad.domain.server.persistence.Server;
+import com.zerodtree.gsad.domain.server.persistence.ServerRepository;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.when;
 
+@ExtendWith(MockitoExtension.class)
 class AgentCredentialServiceTest {
 
-    private static final String MASTER_SECRET = "test-master-secret-at-least-32-chars";
+    @Mock
+    private ServerRepository serverRepository;
 
+    @InjectMocks
     private AgentCredentialService agentCredentialService;
 
-    @BeforeEach
-    void setUp() {
-        AgentProperties properties = new AgentProperties();
-        properties.setMasterSecret(MASTER_SECRET);
-        agentCredentialService = new AgentCredentialService(properties);
-    }
-
     @Test
-    void derivePsk_isDeterministic() {
-        String first = agentCredentialService.derivePsk("gpu-01");
-        String second = agentCredentialService.derivePsk("gpu-01");
+    void matches_acceptsStoredPsk() {
+        Server server = new Server();
+        server.setServerId("gpu-node-01");
+        server.setAgentPsk("stored-psk-value1");
+        when(serverRepository.findByServerId("gpu-node-01")).thenReturn(Optional.of(server));
 
-        assertThat(first).isEqualTo(second);
-        assertThat(first).hasSize(64);
-    }
-
-    @Test
-    void derivePsk_differsByServerId() {
-        assertThat(agentCredentialService.derivePsk("gpu-01"))
-                .isNotEqualTo(agentCredentialService.derivePsk("gpu-02"));
-    }
-
-    @Test
-    void matches_acceptsDerivedPsk() {
-        String serverId = "gpu-mock-001";
-        String psk = agentCredentialService.derivePsk(serverId);
-
-        assertThat(agentCredentialService.matches(serverId, psk)).isTrue();
+        assertThat(agentCredentialService.matches("gpu-node-01", "stored-psk-value1")).isTrue();
     }
 
     @Test
     void matches_rejectsWrongPsk() {
-        assertThat(agentCredentialService.matches("gpu-01", "deadbeef")).isFalse();
+        Server server = new Server();
+        server.setServerId("gpu-node-01");
+        server.setAgentPsk("stored-psk-value1");
+        when(serverRepository.findByServerId("gpu-node-01")).thenReturn(Optional.of(server));
+
+        assertThat(agentCredentialService.matches("gpu-node-01", "other-psk-value")).isFalse();
+    }
+
+    @Test
+    void matches_rejectsMissingPsk() {
+        Server server = new Server();
+        server.setServerId("gpu-node-01");
+        when(serverRepository.findByServerId("gpu-node-01")).thenReturn(Optional.of(server));
+
+        assertThat(agentCredentialService.matches("gpu-node-01", "anything-at-all")).isFalse();
+    }
+
+    @Test
+    void matches_rejectsUnknownServer() {
+        when(serverRepository.findByServerId("missing")).thenReturn(Optional.empty());
+
+        assertThat(agentCredentialService.matches("missing", "stored-psk-value1")).isFalse();
     }
 }

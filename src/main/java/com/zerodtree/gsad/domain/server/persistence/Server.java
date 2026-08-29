@@ -1,7 +1,9 @@
 package com.zerodtree.gsad.domain.server.persistence;
 
+import com.zerodtree.gsad.domain.application.persistence.EncryptedStringConverter;
 import com.zerodtree.gsad.domain.server.model.ServerStatus;
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -38,6 +40,10 @@ public class Server {
 
     @Column(name = "resource_level")
     private String resourceLevel;
+
+    @Convert(converter = EncryptedStringConverter.class)
+    @Column(name = "agent_psk")
+    private String agentPsk;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)

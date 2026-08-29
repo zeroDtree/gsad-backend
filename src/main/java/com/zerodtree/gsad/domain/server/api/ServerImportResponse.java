@@ -4,6 +4,6 @@ import java.util.List;
 
 public record ServerImportResponse(
         int created,
-        int skipped,
+        int updated,
         List<ServerImportError> errors
 ) {}
