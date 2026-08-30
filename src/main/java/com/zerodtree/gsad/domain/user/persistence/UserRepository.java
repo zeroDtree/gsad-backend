@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface UserRepository extends JpaRepository<User, Long> {
@@ -38,4 +39,10 @@ public interface UserRepository extends JpaRepository<User, Long> {
             @Param("cohort") String cohort,
             @Param("roleFilter") String roleFilter,
             Pageable pageable);
+
+    @Query("""
+            SELECT LOWER(u.email) FROM User u
+            WHERE u.email IS NOT NULL AND TRIM(u.email) <> ''
+            """)
+    List<String> findAllEmails();
 }

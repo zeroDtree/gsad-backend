@@ -4,6 +4,7 @@ import com.zerodtree.gsad.common.ApiResponse;
 import com.zerodtree.gsad.common.PageResult;
 import com.zerodtree.gsad.domain.user.service.AdminUserService;
 import com.zerodtree.gsad.domain.user.service.UserImportService;
+import com.zerodtree.gsad.domain.user.service.UserService;
 import com.zerodtree.gsad.security.CurrentUserId;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -34,6 +35,7 @@ public class AdminUserController {
 
     private final UserImportService userImportService;
     private final AdminUserService adminUserService;
+    private final UserService userService;
 
     @GetMapping
     @Operation(summary = "List users (paginated, admin only)")
@@ -44,6 +46,12 @@ public class AdminUserController {
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(name = "page_size", defaultValue = "20") int pageSize) {
         return ApiResponse.ok(adminUserService.list(cohort, status, role, page, pageSize));
+    }
+
+    @GetMapping("/emails")
+    @Operation(summary = "List all user emails (admin only)")
+    public ApiResponse<UserEmailsResponse> listEmails() {
+        return ApiResponse.ok(new UserEmailsResponse(userService.listEmails()));
     }
 
     @PatchMapping("/{id}")

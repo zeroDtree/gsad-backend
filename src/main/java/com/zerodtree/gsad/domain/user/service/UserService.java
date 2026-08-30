@@ -14,6 +14,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 public class UserService {
@@ -54,5 +56,10 @@ public class UserService {
         var roles = AuthorityUtils.parseRoles(user.getRoles());
         String token = jwtTokenProvider.generateToken(user.getEmail(), roles, user.getId(), user.getPassword());
         return new LoginResult(token, user.getEmail(), roles);
+    }
+
+    @Transactional(readOnly = true)
+    public List<String> listEmails() {
+        return userRepository.findAllEmails();
     }
 }
