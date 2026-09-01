@@ -14,7 +14,7 @@ import java.util.stream.Collectors;
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(BusinessException.class)
-    public ResponseEntity<ApiResponse<Void>> handleBusiness(BusinessException ex) {
+    public ResponseEntity<ApiResponse<Object>> handleBusiness(BusinessException ex) {
         HttpStatus status = switch (ex.getErrorCode()) {
             case INVALID_ARGUMENT -> HttpStatus.BAD_REQUEST;
             case UNAUTHORIZED -> HttpStatus.UNAUTHORIZED;
@@ -25,7 +25,7 @@ public class GlobalExceptionHandler {
             case INTERNAL_ERROR -> HttpStatus.INTERNAL_SERVER_ERROR;
         };
         return ResponseEntity.status(status)
-                .body(ApiResponse.error(ex.getErrorCode(), ex.getMessage()));
+                .body(ApiResponse.error(ex.getErrorCode(), ex.getMessage(), ex.getData()));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

@@ -46,13 +46,14 @@ public class UserController {
 
         try {
             var result = userService.login(body);
+            loginRateLimitService.clearAttempts(request, body.email());
             boolean secure = authCookieSupport.isSecureRequest(request);
             return ResponseEntity.ok()
                     .header(HttpHeaders.SET_COOKIE, authCookieSupport.createTokenCookie(result.token(), secure).toString())
                     .body(ApiResponse.ok(new SessionResponse(result.email(), result.roles())));
         } catch (BusinessException ex) {
             if (ex.getErrorCode() == ErrorCode.UNAUTHORIZED) {
-                loginRateLimitService.recordAttempt(request, body.email());
+                loginRateLimitService.recordFailedLogin(request, body.email());
             }
             throw ex;
         }

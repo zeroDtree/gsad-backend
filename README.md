@@ -78,7 +78,7 @@ Agent env `AGENT_SERVER_ID` must match `t_server.server_id`.
 
 | Location | Profile | Content |
 |----------|---------|---------|
-| `db/migration/` V1–V2, V5 | all | Schema (V5 adds `t_server.agent_psk`) |
+| `db/migration/` V1–V2, V5–V6 | all | Schema (V5 `t_server.agent_psk`; V6 login rate-limit settings) |
 | `db/migration-dev/` V3–V4 | dev | Admin user + `gpu-mock-001..100` (PSK seeded at startup) |
 
 Prod has **no seed data**.
